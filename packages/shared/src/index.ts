@@ -60,9 +60,35 @@ export interface FinishResponse {
   items: ReviewItem[]; // barcha savollar bo'yicha to'liq ko'rib chiqish
 }
 
+export type UserStatus = "pending" | "approved" | "blocked";
+
 export interface AuthResponse {
   token: string;
-  user: { id: number; firstName: string; username: string | null };
+  user: {
+    id: number;
+    firstName: string;
+    username: string | null;
+    status: UserStatus;
+    isAdmin: boolean;
+    telegramId: string;
+  };
+}
+
+export interface AdminUser {
+  id: number;
+  telegramId: string;
+  firstName: string;
+  username: string | null;
+  status: UserStatus;
+  createdAt: string;
+  answered: number;
+}
+
+export interface AdminStats {
+  total: number;
+  pending: number;
+  approved: number;
+  blocked: number;
 }
 
 export interface MeStats {

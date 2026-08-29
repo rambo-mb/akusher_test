@@ -1,5 +1,9 @@
 import type { FastifyInstance } from "fastify";
+import type { Bot } from "grammy";
+import { InlineKeyboard } from "grammy";
 import type {
+  AdminStats,
+  AdminUser,
   AnswerRequest,
   AnswerResponse,
   AuthResponse,
@@ -9,14 +13,23 @@ import type {
   QuizMode,
   StartQuizRequest,
   StartQuizResponse,
+  UserStatus,
 } from "@aku/shared";
 import { EXAM_SECONDS_PER_QUESTION } from "@aku/shared";
 import { prisma } from "./db.js";
-import { requireAuth, signToken, verifyInitData } from "./auth.js";
+import {
+  isAdminTelegramId,
+  requireAdmin,
+  requireApproved,
+  requireAuth,
+  signToken,
+  verifyInitData,
+} from "./auth.js";
+import { approveUser, blockUser, notifyAdmin } from "./access.js";
 
 const MAX_COUNT = 100;
 
-export async function registerRoutes(app: FastifyInstance) {
+export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Auth: Telegram initData -> JWT ---
   app.post<{ Body: { initData: string } }>("/api/auth", async (req, reply) => {
     const initData = req.body?.initData;
@@ -25,27 +38,107 @@ export async function registerRoutes(app: FastifyInstance) {
     const tgUser = verifyInitData(initData);
     if (!tgUser) return reply.code(401).send({ error: "initData yaroqsiz" });
 
+    const admin = isAdminTelegramId(tgUser.id);
     const user = await prisma.user.upsert({
       where: { telegramId: BigInt(tgUser.id) },
-      update: { firstName: tgUser.first_name, username: tgUser.username ?? null },
+      update: {
+        firstName: tgUser.first_name,
+        username: tgUser.username ?? null,
+        ...(admin ? { status: "approved" } : {}),
+      },
       create: {
         telegramId: BigInt(tgUser.id),
         firstName: tgUser.first_name,
         username: tgUser.username ?? null,
+        status: admin ? "approved" : "pending",
       },
     });
 
     const res: AuthResponse = {
       token: signToken(user.id),
-      user: { id: user.id, firstName: user.firstName, username: user.username },
+      user: {
+        id: user.id,
+        firstName: user.firstName,
+        username: user.username,
+        status: user.status as UserStatus,
+        isAdmin: admin,
+        telegramId: String(user.telegramId),
+      },
     };
     return res;
   });
 
+  // --- Access: ruxsat so'rash (adminга bildirishnoma) ---
+  app.post("/api/access/request", { preHandler: requireAuth }, async (req, reply) => {
+    const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+    if (!user) return reply.code(401).send({ error: "Foydalanuvchi topilmadi" });
+    if (isAdminTelegramId(user.telegramId) || user.status === "approved") {
+      return { status: "approved" as UserStatus };
+    }
+    if (user.status === "blocked") {
+      return reply.code(403).send({ error: "Siz bloklangansiz", status: "blocked" });
+    }
+    const uname = user.username ? `@${user.username}` : "(username yo'q)";
+    const kb = new InlineKeyboard()
+      .text("✅ Ruxsat berish", `approve:${user.id}`)
+      .text("⛔ Rad etish", `reject:${user.id}`);
+    await notifyAdmin(
+      bot,
+      `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
+      kb,
+    );
+    return { status: "pending" as UserStatus };
+  });
+
+  // --- Admin: foydalanuvchilar ro'yxati ---
+  app.get("/api/admin/users", { preHandler: [requireAuth, requireAdmin] }, async () => {
+    const users = await prisma.user.findMany({ orderBy: { createdAt: "desc" } });
+    const counts = await prisma.$queryRaw<{ userId: number; c: bigint }[]>`
+      SELECT a."userId" AS "userId", COUNT(*) AS c
+      FROM "AttemptAnswer" aa JOIN "Attempt" a ON a.id = aa."attemptId"
+      GROUP BY a."userId"
+    `;
+    const cmap = new Map(counts.map((r) => [r.userId, Number(r.c)]));
+    const list: AdminUser[] = users.map((u) => ({
+      id: u.id,
+      telegramId: String(u.telegramId),
+      firstName: u.firstName,
+      username: u.username,
+      status: u.status as UserStatus,
+      createdAt: u.createdAt.toISOString(),
+      answered: cmap.get(u.id) ?? 0,
+    }));
+    const stats: AdminStats = {
+      total: list.length,
+      pending: list.filter((u) => u.status === "pending").length,
+      approved: list.filter((u) => u.status === "approved").length,
+      blocked: list.filter((u) => u.status === "blocked").length,
+    };
+    return { users: list, stats };
+  });
+
+  // --- Admin: tasdiqlash / bloklash ---
+  app.post<{ Params: { id: string } }>(
+    "/api/admin/users/:id/approve",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req) => {
+      const u = await approveUser(bot, Number(req.params.id));
+      return { id: u.id, status: u.status };
+    },
+  );
+  app.post<{ Params: { id: string } }>(
+    "/api/admin/users/:id/block",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req) => {
+      const u = await blockUser(bot, Number(req.params.id));
+      return { id: u.id, status: u.status };
+    },
+  );
+
   // --- Quiz: start ---
   app.post<{ Body: StartQuizRequest }>(
     "/api/quiz/start",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireApproved] },
     async (req, reply) => {
       const userId = req.userId!;
       const mode = (req.body?.mode ?? "random") as QuizMode;
@@ -94,7 +187,7 @@ export async function registerRoutes(app: FastifyInstance) {
   // --- Quiz: answer ---
   app.post<{ Params: { attemptId: string }; Body: AnswerRequest }>(
     "/api/quiz/:attemptId/answer",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireApproved] },
     async (req, reply) => {
       const userId = req.userId!;
       const attemptId = Number(req.params.attemptId);
@@ -122,7 +215,7 @@ export async function registerRoutes(app: FastifyInstance) {
   // --- Quiz: finish ---
   app.post<{ Params: { attemptId: string } }>(
     "/api/quiz/:attemptId/finish",
-    { preHandler: requireAuth },
+    { preHandler: [requireAuth, requireApproved] },
     async (req, reply) => {
       const userId = req.userId!;
       const attemptId = Number(req.params.attemptId);
@@ -161,7 +254,7 @@ export async function registerRoutes(app: FastifyInstance) {
   );
 
   // --- Stats: me ---
-  app.get("/api/stats/me", { preHandler: requireAuth }, async (req): Promise<MeStats> => {
+  app.get("/api/stats/me", { preHandler: [requireAuth, requireApproved] }, async (req): Promise<MeStats> => {
     const userId = req.userId!;
     const answers = await prisma.attemptAnswer.findMany({
       where: { attempt: { userId } },
@@ -185,13 +278,13 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   // --- Mistakes count (Home ekranida ko'rsatish uchun) ---
-  app.get("/api/mistakes/count", { preHandler: requireAuth }, async (req) => {
+  app.get("/api/mistakes/count", { preHandler: [requireAuth, requireApproved] }, async (req) => {
     const ids = await getMistakeQuestionIds(req.userId!);
     return { count: ids.length };
   });
 
   // --- Leaderboard ---
-  app.get("/api/leaderboard", { preHandler: requireAuth }, async (req): Promise<LeaderboardEntry[]> => {
+  app.get("/api/leaderboard", { preHandler: [requireAuth, requireApproved] }, async (req): Promise<LeaderboardEntry[]> => {
     const userId = req.userId!;
     const rows = await prisma.$queryRaw<
       { userId: number; firstName: string; username: string | null; correct: bigint; total: bigint }[]

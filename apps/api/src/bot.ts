@@ -1,17 +1,58 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
+import { prisma } from "./db.js";
+import { isAdminTelegramId } from "./auth.js";
+import { approveUser, blockUser, notifyAdmin } from "./access.js";
 
 export function createBot() {
   const bot = new Bot(env.BOT_TOKEN);
 
-  bot.command("start", async (ctx) => {
-    const kb = new InlineKeyboard().webApp("🩺 Testni boshlash", env.WEB_APP_URL);
+  // Har kim o'z Telegram ID'sini bilib olishi uchun (admin sozlash uchun kerak)
+  bot.command("myid", async (ctx) => {
     await ctx.reply(
-      "Assalomu alaykum! 👩‍⚕️\n\n" +
-        "Bu bot Akusherlik va ginekologiya imtihoniga tayyorlanish uchun.\n" +
-        "Quyidagi tugma orqali test rejimini oching:",
-      { reply_markup: kb },
+      `🆔 Sizning Telegram ID: \`${ctx.from?.id}\`\n\n` +
+        "Admin bo'lish uchun ushbu raqamni Railway'da `ADMIN_TELEGRAM_ID` o'zgaruvchisiga qo'ying.",
+      { parse_mode: "Markdown" },
     );
+  });
+
+  bot.command("start", async (ctx) => {
+    const from = ctx.from;
+    if (!from) return;
+    const admin = isAdminTelegramId(from.id);
+    const user = await prisma.user.upsert({
+      where: { telegramId: BigInt(from.id) },
+      update: {
+        firstName: from.first_name,
+        username: from.username ?? null,
+        ...(admin ? { status: "approved" } : {}),
+      },
+      create: {
+        telegramId: BigInt(from.id),
+        firstName: from.first_name,
+        username: from.username ?? null,
+        status: admin ? "approved" : "pending",
+      },
+    });
+
+    if (admin || user.status === "approved") {
+      const kb = new InlineKeyboard().webApp("🩺 Testni boshlash", env.WEB_APP_URL);
+      await ctx.reply(
+        `Assalomu alaykum, ${from.first_name}! 👩‍⚕️\n\n` +
+          "Akusherlik va ginekologiya imtihoniga tayyorlanish uchun testlar tayyor.\n" +
+          "Quyidagi tugma orqali boshlang:",
+        { reply_markup: kb },
+      );
+    } else if (user.status === "blocked") {
+      await ctx.reply("⛔ Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.");
+    } else {
+      const kb = new InlineKeyboard().text("📩 Ruxsat so'rash", `req:${user.id}`);
+      await ctx.reply(
+        "🔒 Bu bot yopiq (maxsus ruxsat bilan).\n\n" +
+          "Foydalanish uchun admindan ruxsat so'rang — quyidagi tugmani bosing:",
+        { reply_markup: kb },
+      );
+    }
   });
 
   bot.command("help", (ctx) =>
@@ -21,10 +62,55 @@ export function createBot() {
         "• Imtihon — vaqt chegarasi bilan\n" +
         "• O'rganish — darhol to'g'ri/noto'g'ri\n" +
         "• Xatolar ustida — avval xato qilinganlar\n\n" +
-        "/start bosib boshlang.",
+        "/start — boshlash · /myid — Telegram ID",
     ),
   );
 
+  // Foydalanuvchi "Ruxsat so'rash" tugmasini bosdi
+  bot.callbackQuery(/^req:(\d+)$/, async (ctx) => {
+    const userId = Number(ctx.match[1]);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return ctx.answerCallbackQuery("Foydalanuvchi topilmadi");
+    if (user.status === "approved" || isAdminTelegramId(user.telegramId)) {
+      return ctx.answerCallbackQuery("Sizda allaqachon ruxsat bor ✅");
+    }
+    if (user.status === "blocked") return ctx.answerCallbackQuery("Siz bloklangansiz");
+    const uname = user.username ? `@${user.username}` : "(username yo'q)";
+    const kb = new InlineKeyboard()
+      .text("✅ Ruxsat berish", `approve:${user.id}`)
+      .text("⛔ Rad etish", `reject:${user.id}`);
+    await notifyAdmin(
+      bot,
+      `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
+      kb,
+    );
+    await ctx.answerCallbackQuery("So'rovingiz yuborildi ✅");
+    await ctx.editMessageText("📩 So'rovingiz adminга yuborildi. Tasdiqlashini kuting.");
+  });
+
+  // Admin: tasdiqlash
+  bot.callbackQuery(/^approve:(\d+)$/, async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) {
+      return ctx.answerCallbackQuery("Faqat admin uchun");
+    }
+    const userId = Number(ctx.match[1]);
+    const user = await approveUser(bot, userId);
+    await ctx.answerCallbackQuery("Tasdiqlandi ✅");
+    await ctx.editMessageText(`✅ Ruxsat berildi: ${user.firstName} (ID ${user.telegramId})`);
+  });
+
+  // Admin: rad etish / bloklash
+  bot.callbackQuery(/^reject:(\d+)$/, async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) {
+      return ctx.answerCallbackQuery("Faqat admin uchun");
+    }
+    const userId = Number(ctx.match[1]);
+    const user = await blockUser(bot, userId);
+    await ctx.answerCallbackQuery("Rad etildi");
+    await ctx.editMessageText(`⛔ Rad etildi: ${user.firstName} (ID ${user.telegramId})`);
+  });
+
+  bot.catch((err) => console.error("Bot xatosi:", err));
   return bot;
 }
 

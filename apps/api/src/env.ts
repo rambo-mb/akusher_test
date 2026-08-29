@@ -14,4 +14,6 @@ export const env = {
   PORT: Number(process.env.PORT ?? 3000),
   // Bo'sh bo'lsa bot long-polling'da ishlaydi (dev). To'ldirilsa webhook (prod).
   PUBLIC_API_URL: process.env.PUBLIC_API_URL ?? "",
+  // Admin (bot egasi) Telegram raqamli ID'si. /myid orqali bilib olinadi.
+  ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID ?? "",
 };

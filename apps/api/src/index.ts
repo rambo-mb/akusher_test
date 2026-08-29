@@ -10,8 +10,11 @@ async function main() {
   const app = Fastify({ logger: true });
   await app.register(cors, { origin: true });
 
+  // Bot (long-polling — dev va oddiy prod uchun)
+  const bot = createBot();
+
   app.get("/health", async () => ({ ok: true }));
-  await registerRoutes(app);
+  await registerRoutes(app, bot);
 
   // Savollarni bazaga idempotent yuklash (data/questions.json dan)
   try {
@@ -21,8 +24,6 @@ async function main() {
     app.log.error(`Seed xatosi: ${e}`);
   }
 
-  // Bot (long-polling — dev va oddiy prod uchun)
-  const bot = createBot();
   bot.start({
     onStart: () => app.log.info("Telegram bot ishga tushdi (long-polling)"),
   });

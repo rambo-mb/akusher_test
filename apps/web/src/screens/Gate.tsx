@@ -1,0 +1,79 @@
+import { useState } from "react";
+import type { AuthResponse, UserStatus } from "@aku/shared";
+import { api } from "../api.js";
+import { getInitData } from "../telegram.js";
+
+export function Gate(props: { user: AuthResponse["user"]; onApproved: () => void }) {
+  const [status, setStatus] = useState<UserStatus>(props.user.status);
+  const [requested, setRequested] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function request() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await api.requestAccess();
+      if (r.status === "approved") return props.onApproved();
+      setStatus(r.status);
+      if (r.status === "pending") setRequested(true);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function recheck() {
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await api.auth(getInitData());
+      if (res.user.isAdmin || res.user.status === "approved") return props.onApproved();
+      setStatus(res.user.status);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (status === "blocked") {
+    return (
+      <div className="gate">
+        <div className="gate-emoji">⛔</div>
+        <h1>Ruxsat yo'q</h1>
+        <p className="subtitle">Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.</p>
+        <p className="gate-id">ID: {props.user.telegramId}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="gate">
+      <div className="gate-emoji">🔒</div>
+      <h1>Ruxsat kerak</h1>
+      <p className="subtitle">
+        Bu bot yopiq. Foydalanish uchun admindan ruxsat oling.
+      </p>
+
+      {!requested ? (
+        <button className="primary" onClick={request} disabled={busy}>
+          {busy ? "Yuborilmoqda…" : "📩 Ruxsat so'rash"}
+        </button>
+      ) : (
+        <div className="card" style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
+          <div style={{ fontWeight: 600 }}>So'rovingiz yuborildi</div>
+          <div className="review-note">Admin tasdiqlagach, botdan foydalanasiz.</div>
+          <button className="ghost" onClick={recheck} disabled={busy} style={{ marginTop: 10 }}>
+            {busy ? "Tekshirilmoqda…" : "🔄 Holatni tekshirish"}
+          </button>
+        </div>
+      )}
+
+      <p className="gate-id">Sizning ID: {props.user.telegramId}</p>
+      {err && <p className="review-note" style={{ color: "var(--red)" }}>{err}</p>}
+    </div>
+  );
+}

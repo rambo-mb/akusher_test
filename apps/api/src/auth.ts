@@ -2,6 +2,11 @@ import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { env } from "./env.js";
+import { prisma } from "./db.js";
+
+export function isAdminTelegramId(telegramId: bigint | number | string): boolean {
+  return !!env.ADMIN_TELEGRAM_ID && String(telegramId) === env.ADMIN_TELEGRAM_ID;
+}
 
 export interface TelegramUser {
   id: number;
@@ -53,6 +58,7 @@ export function signToken(userId: number): string {
 declare module "fastify" {
   interface FastifyRequest {
     userId?: number;
+    isAdmin?: boolean;
   }
 }
 
@@ -67,4 +73,26 @@ export async function requireAuth(req: FastifyRequest, reply: FastifyReply) {
   } catch {
     return reply.code(401).send({ error: "Token yaroqsiz" });
   }
+}
+
+/** Tasdiqlangan (yoki admin) foydalanuvchilargagina ruxsat. requireAuth'dan keyin ishlaydi. */
+export async function requireApproved(req: FastifyRequest, reply: FastifyReply) {
+  if (!req.userId) return reply.code(401).send({ error: "Avtorizatsiya talab qilinadi" });
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) return reply.code(401).send({ error: "Foydalanuvchi topilmadi" });
+  const admin = isAdminTelegramId(user.telegramId);
+  req.isAdmin = admin;
+  if (!admin && user.status !== "approved") {
+    return reply.code(403).send({ error: "Ruxsat berilmagan", status: user.status });
+  }
+}
+
+/** Faqat admin. requireAuth'dan keyin ishlaydi. */
+export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
+  if (!req.userId) return reply.code(401).send({ error: "Avtorizatsiya talab qilinadi" });
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user || !isAdminTelegramId(user.telegramId)) {
+    return reply.code(403).send({ error: "Faqat admin uchun" });
+  }
+  req.isAdmin = true;
 }

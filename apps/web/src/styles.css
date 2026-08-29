@@ -325,6 +325,103 @@ button.ghost {
   padding: 40px 0;
   color: var(--tg-hint);
 }
+
+/* Gate (ruxsat ekrani) */
+.gate {
+  text-align: center;
+  padding: 36px 8px;
+}
+.gate-emoji {
+  font-size: 56px;
+  margin-bottom: 8px;
+}
+.gate h1 {
+  margin-bottom: 6px;
+}
+.gate .primary {
+  margin-top: 18px;
+}
+.gate-id {
+  margin-top: 22px;
+  font-size: 12px;
+  color: var(--tg-hint);
+}
+
+/* Admin — foydalanuvchi qatorlari */
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--tg-secondary-bg);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+}
+.user-main {
+  flex: 1;
+  min-width: 0;
+}
+.user-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.user-uname {
+  color: var(--tg-hint);
+  font-weight: 400;
+}
+.user-meta {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ubadge {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 8px;
+  padding: 1px 7px;
+  color: #fff;
+}
+.ubadge.pending {
+  background: #e08e0b;
+}
+.ubadge.approved {
+  background: var(--green);
+}
+.ubadge.blocked {
+  background: var(--red);
+}
+.user-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.btn-approve,
+.btn-block {
+  border: none;
+  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  font-size: 16px;
+  cursor: pointer;
+  color: #fff;
+}
+.btn-approve {
+  background: var(--green);
+}
+.btn-block {
+  background: var(--red);
+}
+.btn-approve:disabled,
+.btn-block:disabled {
+  opacity: 0.5;
+}
+.admin-btn {
+  border: 1px solid color-mix(in srgb, var(--tg-button) 45%, transparent);
+}
 .review-note {
   font-size: 12px;
   color: var(--tg-hint);

@@ -1,4 +1,6 @@
 import type {
+  AdminStats,
+  AdminUser,
   AnswerRequest,
   AnswerResponse,
   AuthResponse,
@@ -7,24 +9,34 @@ import type {
   MeStats,
   StartQuizRequest,
   StartQuizResponse,
+  UserStatus,
 } from "@aku/shared";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
 let token: string | null = localStorage.getItem("token");
 
+export class ApiError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function req<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+
   const res = await fetch(BASE + path, {
     method,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? "Xatolik");
+    throw new ApiError(err.error ?? "Xatolik", res.status);
   }
   return res.json() as Promise<T>;
 }
@@ -53,5 +65,17 @@ export const api = {
   },
   leaderboard() {
     return req<LeaderboardEntry[]>("/api/leaderboard");
+  },
+  requestAccess() {
+    return req<{ status: UserStatus }>("/api/access/request", "POST");
+  },
+  adminUsers() {
+    return req<{ users: AdminUser[]; stats: AdminStats }>("/api/admin/users");
+  },
+  adminApprove(id: number) {
+    return req<{ id: number; status: UserStatus }>(`/api/admin/users/${id}/approve`, "POST");
+  },
+  adminBlock(id: number) {
+    return req<{ id: number; status: UserStatus }>(`/api/admin/users/${id}/block`, "POST");
   },
 };

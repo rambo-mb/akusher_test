@@ -5,9 +5,11 @@ import { api } from "../api.js";
 import { tap } from "../telegram.js";
 
 export function Home(props: {
+  isAdmin: boolean;
   onStart: (data: StartQuizResponse) => void;
   onStats: () => void;
   onLeaderboard: () => void;
+  onAdmin: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
@@ -101,6 +103,9 @@ export function Home(props: {
 
       <button className="ghost" onClick={props.onStats}>📊 Mening statistikam</button>
       <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
+      {props.isAdmin && (
+        <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar (admin)</button>
+      )}
     </>
   );
 }
