@@ -102,9 +102,11 @@ export function Home(props: {
       </div>
 
       <button className="ghost" onClick={props.onStats}>📊 Mening statistikam</button>
-      <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
       {props.isAdmin && (
-        <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar (admin)</button>
+        <>
+          <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
+          <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar (admin)</button>
+        </>
       )}
     </>
   );

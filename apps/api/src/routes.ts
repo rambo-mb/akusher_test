@@ -284,7 +284,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   });
 
   // --- Leaderboard ---
-  app.get("/api/leaderboard", { preHandler: [requireAuth, requireApproved] }, async (req): Promise<LeaderboardEntry[]> => {
+  app.get("/api/leaderboard", { preHandler: [requireAuth, requireAdmin] }, async (req): Promise<LeaderboardEntry[]> => {
     const userId = req.userId!;
     const rows = await prisma.$queryRaw<
       { userId: number; firstName: string; username: string | null; correct: bigint; total: bigint }[]
