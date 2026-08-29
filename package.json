@@ -11,6 +11,7 @@
     "dev:api": "pnpm --filter @aku/api dev",
     "dev:web": "pnpm --filter @aku/web dev",
     "build": "pnpm -r build",
+    "prepare": "pnpm --filter @aku/shared build",
     "seed": "pnpm --filter @aku/api seed",
     "db:up": "docker compose up -d db",
     "db:push": "pnpm --filter @aku/api prisma db push"
