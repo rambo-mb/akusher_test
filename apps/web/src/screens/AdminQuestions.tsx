@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { AdminQuestion } from "@aku/shared";
 import { api } from "../api.js";
 import { Skeleton } from "../components/Skeleton.js";
-import { tap, alertMsg, useTelegramBackButton, useTelegramMainButton, inTg } from "../telegram.js";
+import { tap, useTelegramBackButton, useTelegramMainButton, inTg } from "../telegram.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 const TAKE = 20;

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import type { AdminStats, AdminUser, AdminUserDetail, UserStatus } from "@aku/shared";
-import { ACCESS_DURATIONS, type AdminUserListItem } from "@aku/shared";
+import { ACCESS_DURATIONS } from "@aku/shared";
 import { Skeleton } from "../components/Skeleton.js";
 import { api } from "../api.js";
-import { tap, alertMsg, useTelegramBackButton, inTg } from "../telegram.js";
+import { tap, inTg } from "../telegram.js";
 
 const STATUS_LABEL: Record<UserStatus, string> = {
   pending: "Kutilmoqda",
@@ -28,6 +28,8 @@ export function Admin(props: { onBack: () => void }) {
   const [bcOpen, setBcOpen] = useState(false);
   const [bcText, setBcText] = useState("");
   const [bcMsg, setBcMsg] = useState<string | null>(null);
+
+  useTelegramBackButton(props.onBack);
 
   async function load() {
     try {

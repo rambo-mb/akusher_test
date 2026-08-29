@@ -75,7 +75,7 @@ export function App() {
       {!allowed && user && (
         <Gate
           user={user}
-          config={config}
+          config={config ?? undefined}
           onApproved={() => setUser({ ...user, status: "approved" })}
         />
       )}
