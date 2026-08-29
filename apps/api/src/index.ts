@@ -1,7 +1,9 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { env } from "./env.js";
+import { prisma } from "./db.js";
 import { registerRoutes } from "./routes.js";
+import { seedQuestions } from "./seed.js";
 import { createBot, setupMenuButton } from "./bot.js";
 
 async function main() {
@@ -10,6 +12,14 @@ async function main() {
 
   app.get("/health", async () => ({ ok: true }));
   await registerRoutes(app);
+
+  // Savollarni bazaga idempotent yuklash (data/questions.json dan)
+  try {
+    const n = await seedQuestions(prisma);
+    app.log.info(`Savollar yuklandi/yangilandi: ${n} ta`);
+  } catch (e) {
+    app.log.error(`Seed xatosi: ${e}`);
+  }
 
   // Bot (long-polling — dev va oddiy prod uchun)
   const bot = createBot();
