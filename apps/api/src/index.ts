@@ -24,14 +24,33 @@ async function main() {
     app.log.error(`Seed xatosi: ${e}`);
   }
 
-  bot.start({
-    onStart: () => app.log.info("Telegram bot ishga tushdi (long-polling)"),
-  });
+  // Botni chidamli ishga tushirish: 409 (deploy paytida ikki instansiya) yoki
+  // vaqtinchalik xatoда API'ni qulatmasdan qayta urinamiz.
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  void (async () => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        await bot.start({
+          drop_pending_updates: true,
+          onStart: () => app.log.info("Telegram bot ishga tushdi (long-polling)"),
+        });
+        break; // bot to'xtaganда resolve bo'ladi
+      } catch (err) {
+        app.log.warn(`Bot polling xatosi (urinish ${attempt}): ${err}. 5s dan keyin qayta.`);
+        await sleep(5000);
+      }
+    }
+  })();
   setupMenuButton(bot).catch((e) => app.log.warn(`Menu button o'rnatilmadi: ${e}`));
 
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
   app.log.info(`API tayyor: http://localhost:${env.PORT}`);
 }
+
+// So'nggi himoya: kutilmagan xatolar jarayonni qulatmasin (log qilamiz)
+process.on("unhandledRejection", (reason) => {
+  console.error("unhandledRejection:", reason);
+});
 
 main().catch((err) => {
   console.error(err);
