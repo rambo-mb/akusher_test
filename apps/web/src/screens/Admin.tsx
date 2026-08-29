@@ -3,7 +3,7 @@ import type { AdminStats, AdminUser, AdminUserDetail, UserStatus } from "@aku/sh
 import { ACCESS_DURATIONS } from "@aku/shared";
 import { Skeleton } from "../components/Skeleton.js";
 import { api } from "../api.js";
-import { tap, inTg } from "../telegram.js";
+import { tap, inTg, useTelegramBackButton } from "../telegram.js";
 
 const STATUS_LABEL: Record<UserStatus, string> = {
   pending: "Kutilmoqda",
