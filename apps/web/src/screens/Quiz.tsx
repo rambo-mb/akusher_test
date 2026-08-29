@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { FinishResponse, StartQuizResponse } from "@aku/shared";
 import { api } from "../api.js";
-import { haptic, tap } from "../telegram.js";
+import { haptic, tap, useTelegramMainButton, useTelegramBackButton } from "../telegram.js";
+import { ConfirmModal } from "../components/ConfirmModal.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -16,6 +17,7 @@ export function Quiz(props: {
   const [revealed, setRevealed] = useState<Record<number, number>>({}); // qId -> correctIndex (study)
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmExit, setConfirmExit] = useState(false);
   const [timeLeft, setTimeLeft] = useState(timeLimitSec ?? 0);
   const [explanations, setExplanations] = useState<Record<number, string | null>>({});
   const [bookmarks, setBookmarks] = useState<Record<number, boolean>>(() =>
@@ -120,6 +122,15 @@ export function Quiz(props: {
     setIndex((i) => i + 1);
   }
 
+  useTelegramBackButton(() => setConfirmExit(true));
+
+  useTelegramMainButton(
+    isLast ? "Yakunlash" : "Keyingi",
+    next,
+    selected !== null, // Faqat javob tanlanganda ko'rinadi
+    busy
+  );
+
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
   const answeredCount = Object.keys(selections).length;
@@ -143,9 +154,7 @@ export function Quiz(props: {
             {bookmarks[q.id] ? "🔖" : "🏷️"}
           </span>
           <span
-            onClick={() => {
-              if (window.confirm("Testdan chiqasizmi? Joriy natija saqlanmaydi.")) props.onExit();
-            }}
+            onClick={() => setConfirmExit(true)}
             style={{ cursor: "pointer" }}
           >
             ✕
@@ -182,19 +191,24 @@ export function Quiz(props: {
 
       {error && <p className="review-note" style={{ color: "var(--red)" }}>{error}</p>}
 
-      <button
-        className="primary"
-        onClick={next}
-        disabled={selected === null || busy}
-        style={{ marginTop: 8 }}
-      >
-        {busy ? "…" : isLast ? "Yakunlash" : "Keyingi"}
-      </button>
+      {/* MainButton borligi uchun veb-tugma kerak emas */}
 
       {!isStudy && (
-        <p className="review-note" style={{ textAlign: "center" }}>
+        <p className="review-note" style={{ textAlign: "center", marginBottom: 20 }}>
           Javobni tanlang — kerak bo'lsa o'zgartirishingiz mumkin. {answeredCount}/{questions.length} belgilandi.
         </p>
+      )}
+
+      {confirmExit && (
+        <ConfirmModal
+          title="Testdan chiqasizmi?"
+          message="Joriy natija saqlanmaydi."
+          onConfirm={() => {
+            setConfirmExit(false);
+            props.onExit();
+          }}
+          onCancel={() => setConfirmExit(false)}
+        />
       )}
     </>
   );

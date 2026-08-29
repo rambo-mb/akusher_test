@@ -78,6 +78,10 @@ export interface AuthResponse {
     telegramId: string;
     accessUntil: string | null; // ISO sana yoki null (cheksiz)
   };
+  config?: {
+    adminUsername?: string;
+    priceInfo?: string;
+  };
 }
 
 export interface AdminUser {
@@ -139,6 +143,26 @@ export interface MeStats {
   accuracy: number; // 0..100
   mistakesCount: number;
   bestScore: number;
+  streak: number;
+  dailyGoal: number;
+  answeredToday: number;
+  masteredCount: number;
+}
+
+export interface AttemptHistory {
+  id: number;
+  mode: QuizMode;
+  count: number;
+  correctCount: number;
+  score: number;
+  finishedAt: string;
+}
+
+export interface WeakQuestion {
+  questionId: number;
+  stem: string;
+  wrongCount: number;
+  box: number;
 }
 
 export interface LeaderboardEntry {

@@ -46,12 +46,16 @@ export function createBot() {
     } else if (user.status === "blocked") {
       await ctx.reply("⛔ Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.");
     } else {
+      let msg = "🔒 Bu bot yopiq (maxsus ruxsat bilan).\n\n" +
+        "Foydalanish uchun admindan ruxsat so'rang — quyidagi tugmani bosing:";
       const kb = new InlineKeyboard().text("📩 Ruxsat so'rash", `req:${user.id}`);
-      await ctx.reply(
-        "🔒 Bu bot yopiq (maxsus ruxsat bilan).\n\n" +
-          "Foydalanish uchun admindan ruxsat so'rang — quyidagi tugmani bosing:",
-        { reply_markup: kb },
-      );
+      if (env.PRICE_INFO) {
+        msg += `\n\n${env.PRICE_INFO}`;
+      }
+      if (env.ADMIN_USERNAME) {
+        kb.row().url("💬 Admin bilan bog'lanish", `https://t.me/${env.ADMIN_USERNAME}`);
+      }
+      await ctx.reply(msg, { reply_markup: kb });
     }
   });
 
@@ -82,7 +86,15 @@ export function createBot() {
       approvalKeyboard(user.id),
     );
     await ctx.answerCallbackQuery("So'rovingiz yuborildi ✅");
-    await ctx.editMessageText("📩 So'rovingiz adminга yuborildi. Tasdiqlashini kuting.");
+    let msg = "📩 So'rovingiz adminга yuborildi. Tasdiqlashini kuting.";
+    const editKb = new InlineKeyboard();
+    if (env.PRICE_INFO) {
+      msg += `\n\n${env.PRICE_INFO}`;
+    }
+    if (env.ADMIN_USERNAME) {
+      editKb.url("💬 Admin bilan bog'lanish", `https://t.me/${env.ADMIN_USERNAME}`);
+    }
+    await ctx.editMessageText(msg, { reply_markup: editKb.inline_keyboard.length ? editKb : undefined });
   });
 
   // Admin: tasdiqlash (ap:<kun>:<userId>, 0 = cheksiz)

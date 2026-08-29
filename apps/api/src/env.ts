@@ -16,4 +16,6 @@ export const env = {
   PUBLIC_API_URL: process.env.PUBLIC_API_URL ?? "",
   // Admin (bot egasi) Telegram raqamli ID'si. /myid orqali bilib olinadi.
   ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID ?? "",
+  ADMIN_USERNAME: process.env.ADMIN_USERNAME ?? "",
+  PRICE_INFO: process.env.PRICE_INFO ?? "",
 };

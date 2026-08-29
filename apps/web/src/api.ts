@@ -13,6 +13,8 @@ import type {
   StartQuizRequest,
   StartQuizResponse,
   UserStatus,
+  AttemptHistory,
+  WeakQuestion,
 } from "@aku/shared";
 
 const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -62,6 +64,18 @@ export const api = {
   },
   stats() {
     return req<MeStats>("/api/stats/me");
+  },
+  updateDailyGoal(goal: number) {
+    return req<{ ok: boolean; dailyGoal: number }>("/api/me/daily-goal", "PUT", { goal });
+  },
+  attempts() {
+    return req<AttemptHistory[]>("/api/attempts");
+  },
+  attempt(id: number) {
+    return req<FinishResponse>(`/api/attempts/${id}`);
+  },
+  statsWeak() {
+    return req<WeakQuestion[]>("/api/stats/weak");
   },
   mistakesCount() {
     return req<{ count: number }>("/api/mistakes/count");

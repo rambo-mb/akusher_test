@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTelegramMainButton } from "../telegram.js";
 import type { FinishResponse } from "@aku/shared";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
@@ -9,13 +10,44 @@ export function Result(props: { data: FinishResponse; onHome: () => void }) {
   const emoji = score >= 80 ? "🎉" : score >= 60 ? "👍" : "📚";
   const color = score >= 80 ? "var(--green)" : score >= 50 ? "var(--tg-button)" : "var(--red)";
   const [filter, setFilter] = useState<"all" | "wrong">("all");
+  const [animScore, setAnimScore] = useState(0);
+
+  useEffect(() => {
+    let frame: number;
+    let current = 0;
+    const animate = () => {
+      current += (score - current) * 0.1;
+      if (score - current < 0.5) current = score;
+      setAnimScore(current);
+      if (current < score) frame = requestAnimationFrame(animate);
+    };
+    frame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(frame);
+  }, [score]);
 
   const shown = filter === "wrong" ? items.filter((i) => !i.isCorrect) : items;
 
+  useTelegramMainButton("Bosh sahifa", props.onHome);
+
   return (
     <>
-      <h1>Natija {emoji}</h1>
-      <div className="result-score" style={{ color }}>{score}%</div>
+      <h1 style={{ textAlign: "center" }}>Natija {emoji}</h1>
+      
+      <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="var(--tg-secondary-bg)" strokeWidth="12" />
+          <circle
+            cx="60" cy="60" r="50" fill="none" stroke={color} strokeWidth="12"
+            strokeDasharray={2 * Math.PI * 50}
+            strokeDashoffset={2 * Math.PI * 50 * (1 - animScore / 100)}
+            strokeLinecap="round"
+            transform="rotate(-90 60 60)"
+          />
+          <text x="60" y="65" textAnchor="middle" fontSize="28" fontWeight="bold" fill="var(--tg-text)">
+            {Math.round(animScore)}%
+          </text>
+        </svg>
+      </div>
       <div className="result-sub">
         {total} tadan <b style={{ color: "var(--green)" }}>{correctCount} to'g'ri</b>
         {wrongCount > 0 && (
@@ -69,9 +101,7 @@ export function Result(props: { data: FinishResponse; onHome: () => void }) {
         </>
       )}
 
-      <button className="primary" onClick={props.onHome} style={{ marginTop: 8 }}>
-        Bosh sahifa
-      </button>
+      {/* MainButton replaces the button below */}
     </>
   );
 }

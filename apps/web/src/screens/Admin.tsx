@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import type { AdminStats, AdminUser, AdminUserDetail, UserStatus } from "@aku/shared";
-import { ACCESS_DURATIONS } from "@aku/shared";
+import { ACCESS_DURATIONS, type AdminUserListItem } from "@aku/shared";
+import { Skeleton } from "../components/Skeleton.js";
 import { api } from "../api.js";
-import { tap } from "../telegram.js";
+import { tap, alertMsg, useTelegramBackButton, inTg } from "../telegram.js";
 
 const STATUS_LABEL: Record<UserStatus, string> = {
   pending: "Kutilmoqda",
@@ -117,7 +118,11 @@ export function Admin(props: { onBack: () => void }) {
 
   return (
     <>
-      <h1>👥 Foydalanuvchilar</h1>
+      <div className="header-row" style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+        {!inTg && <button className="ghost" onClick={props.onBack} style={{ margin: 0, width: "auto", padding: "8px 12px" }}>← Orqaga</button>}
+        <h1 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 20 }}>Foydalanuvchilar</h1>
+        {!inTg && <div style={{ width: 80 }} />}
+      </div>
 
       {stats && (
         <div className="statstrip">
@@ -166,7 +171,7 @@ export function Admin(props: { onBack: () => void }) {
       </div>
 
       {err && <p className="review-note" style={{ color: "var(--red)" }}>{err}</p>}
-      {!users && <div className="center">Yuklanmoqda…</div>}
+      {!users && <Skeleton />}
       {users && shown.length === 0 && <div className="center">Bo'sh</div>}
 
       {shown.map((u) => {
@@ -205,7 +210,7 @@ export function Admin(props: { onBack: () => void }) {
                     <span>🆔 {u.telegramId}</span>
                   </div>
                 ) : (
-                  <div className="review-note">Yuklanmoqda…</div>
+                  <Skeleton />
                 )}
                 <div className="dur-label">
                   {u.status === "approved" ? "Muddat qo'shish:" : "Ruxsat berish:"}
@@ -237,9 +242,11 @@ export function Admin(props: { onBack: () => void }) {
         );
       })}
 
-      <button className="ghost" onClick={props.onBack} style={{ marginTop: 12 }}>
-        ← Orqaga
-      </button>
+      {!inTg && (
+        <button className="ghost" onClick={props.onBack} style={{ marginTop: 12 }}>
+          ← Orqaga
+        </button>
+      )}
     </>
   );
 }

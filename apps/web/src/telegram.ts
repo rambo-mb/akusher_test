@@ -11,6 +11,34 @@ interface TgWebApp {
     notificationOccurred: (type: "error" | "success" | "warning") => void;
     impactOccurred: (style: "light" | "medium" | "heavy") => void;
   };
+  openTelegramLink: (url: string) => void;
+  showAlert: (message: string, callback?: () => void) => void;
+  showConfirm: (message: string, callback?: (confirmed: boolean) => void) => void;
+  MainButton: {
+    text: string;
+    color: string;
+    textColor: string;
+    isVisible: boolean;
+    isActive: boolean;
+    isProgressVisible: boolean;
+    setText: (text: string) => void;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+    enable: () => void;
+    disable: () => void;
+    showProgress: (leaveActive: boolean) => void;
+    hideProgress: () => void;
+    setParams: (params: any) => void;
+  };
+  BackButton: {
+    isVisible: boolean;
+    onClick: (callback: () => void) => void;
+    offClick: (callback: () => void) => void;
+    show: () => void;
+    hide: () => void;
+  };
 }
 
 declare global {
@@ -20,6 +48,7 @@ declare global {
 }
 
 export const tg = window.Telegram?.WebApp;
+export const inTg = !!tg?.initData;
 
 export function initTelegram() {
   if (!tg) return;
@@ -51,8 +80,60 @@ export function tap() {
   tg?.HapticFeedback?.impactOccurred("light");
 }
 
+export function openTelegramLink(url: string) {
+  if (tg?.openTelegramLink) {
+    tg.openTelegramLink(url);
+  } else {
+    window.open(url, "_blank");
+  }
+}
+
+export function alertMsg(message: string) {
+  if (tg?.showAlert) {
+    tg.showAlert(message);
+  } else {
+    window.alert(message);
+  }
+}
+
+import { useEffect } from "react";
+
 // Dev rejimida (Telegramdan tashqarida) test uchun initData
 export function getInitData(): string {
   if (tg?.initData) return tg.initData;
   return import.meta.env.VITE_DEV_INIT_DATA ?? "";
+}
+
+export function useTelegramBackButton(onClick: () => void) {
+  useEffect(() => {
+    if (tg?.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(onClick);
+      return () => {
+        tg.BackButton.offClick(onClick);
+        tg.BackButton.hide();
+      };
+    }
+  }, [onClick]);
+}
+
+export function useTelegramMainButton(text: string, onClick: () => void, isVisible = true, isProgress = false) {
+  useEffect(() => {
+    if (tg?.MainButton) {
+      if (isVisible) {
+        tg.MainButton.setText(text);
+        tg.MainButton.show();
+      } else {
+        tg.MainButton.hide();
+      }
+      if (isProgress) tg.MainButton.showProgress(false);
+      else tg.MainButton.hideProgress();
+
+      tg.MainButton.onClick(onClick);
+      return () => {
+        tg.MainButton.offClick(onClick);
+        tg.MainButton.hide();
+      };
+    }
+  }, [text, onClick, isVisible, isProgress]);
 }

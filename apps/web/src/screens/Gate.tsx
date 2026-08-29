@@ -1,9 +1,9 @@
 import { useState } from "react";
 import type { AuthResponse, UserStatus } from "@aku/shared";
 import { api } from "../api.js";
-import { getInitData } from "../telegram.js";
+import { getInitData, openTelegramLink } from "../telegram.js";
 
-export function Gate(props: { user: AuthResponse["user"]; onApproved: () => void }) {
+export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse["config"]; onApproved: () => void }) {
   const [status, setStatus] = useState<UserStatus>(props.user.status);
   const [requested, setRequested] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -62,9 +62,25 @@ export function Gate(props: { user: AuthResponse["user"]; onApproved: () => void
       </p>
 
       {!requested ? (
-        <button className="primary" onClick={request} disabled={busy}>
-          {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
-        </button>
+        <>
+          {props.config?.priceInfo && (
+            <div className="card" style={{ marginBottom: 16, whiteSpace: "pre-wrap", textAlign: "center" }}>
+              {props.config.priceInfo}
+            </div>
+          )}
+          <button className="primary" onClick={request} disabled={busy}>
+            {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
+          </button>
+          {props.config?.adminUsername && (
+            <button
+              className="ghost"
+              onClick={() => openTelegramLink(`https://t.me/${props.config!.adminUsername}`)}
+              style={{ marginTop: 8 }}
+            >
+              💬 Admin bilan bog'lanish (to'lov)
+            </button>
+          )}
+        </>
       ) : (
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>

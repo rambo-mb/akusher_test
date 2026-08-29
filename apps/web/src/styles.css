@@ -264,7 +264,7 @@ button.ghost {
 }
 
 /* Savol almashganda silliq paydo bo'lish */
-.qbody {
+.qbody, .app > * {
   animation: fadeSlide 0.22s ease;
 }
 @keyframes fadeSlide {
@@ -637,4 +637,28 @@ button.ghost {
 }
 .tagr.no {
   color: var(--red);
+}
+
+/* Skeleton loader */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.skeleton-line, .skeleton-card {
+  background: color-mix(in srgb, var(--tg-hint) 20%, var(--tg-secondary-bg));
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--tg-hint) 20%, var(--tg-secondary-bg)) 0%,
+    color-mix(in srgb, var(--tg-hint) 30%, var(--tg-secondary-bg)) 20%,
+    color-mix(in srgb, var(--tg-hint) 20%, var(--tg-secondary-bg)) 40%,
+    color-mix(in srgb, var(--tg-hint) 20%, var(--tg-secondary-bg)) 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear forwards;
+  border-radius: 8px;
+}
+.skeleton-card {
+  border-radius: var(--radius);
 }

@@ -11,6 +11,8 @@ export function Home(props: {
   onLeaderboard: () => void;
   onAdmin: () => void;
   onAdminQuestions: () => void;
+  onHistory: () => void;
+  onAchievements: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
@@ -42,10 +44,47 @@ export function Home(props: {
     }
   }
 
+  async function changeGoal() {
+    if (!stats) return;
+    tap();
+    const goals = [10, 20, 30, 50];
+    const nextIdx = (goals.indexOf(stats.dailyGoal) + 1) % goals.length;
+    const nextGoal = goals[nextIdx] || 20;
+    setStats({ ...stats, dailyGoal: nextGoal });
+    api.updateDailyGoal(nextGoal).catch(() => {});
+  }
+
   return (
     <>
       <h1>Akusherlik va ginekologiya</h1>
       <p className="subtitle">Imtihonga tayyorlanish — test rejimini tanlang</p>
+
+      {stats && (
+        <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ background: "var(--tg-secondary-bg)", padding: "4px 8px", borderRadius: 12, fontWeight: "bold", fontSize: 14 }}>
+              🔥 {stats.streak} kun
+            </div>
+            <div style={{ fontSize: 12, color: "var(--tg-hint)" }}>Davomiy</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }} onClick={changeGoal}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 14, fontWeight: "bold" }}>Maqsad</div>
+              <div style={{ fontSize: 12, color: "var(--tg-hint)" }}>{stats.answeredToday} / {stats.dailyGoal}</div>
+            </div>
+            <svg width="40" height="40" style={{ cursor: "pointer" }}>
+              <circle cx="20" cy="20" r="16" fill="none" stroke="var(--tg-secondary-bg)" strokeWidth="4" />
+              <circle
+                cx="20" cy="20" r="16" fill="none" stroke="var(--tg-button)" strokeWidth="4"
+                strokeDasharray={2 * Math.PI * 16}
+                strokeDashoffset={2 * Math.PI * 16 * (1 - Math.min(1, stats.answeredToday / stats.dailyGoal))}
+                transform="rotate(-90 20 20)"
+                style={{ transition: "stroke-dashoffset 0.5s ease" }}
+              />
+            </svg>
+          </div>
+        </div>
+      )}
 
       {stats && stats.totalAnswered > 0 && (
         <div className="statstrip">
@@ -109,6 +148,9 @@ export function Home(props: {
       </div>
 
       <button className="ghost" onClick={props.onStats}>📊 Mening statistikam</button>
+      <button className="ghost" onClick={props.onHistory}>📜 Tarix</button>
+      <button className="ghost" onClick={props.onAchievements}>🏅 Yutuqlar</button>
+      
       {props.isAdmin && (
         <>
           <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>

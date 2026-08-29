@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { AdminQuestion } from "@aku/shared";
 import { api } from "../api.js";
-import { tap } from "../telegram.js";
+import { Skeleton } from "../components/Skeleton.js";
+import { tap, alertMsg, useTelegramBackButton, useTelegramMainButton, inTg } from "../telegram.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 const TAKE = 20;
@@ -17,6 +18,14 @@ export function AdminQuestions(props: { onBack: () => void }) {
   const [editId, setEditId] = useState(0);
   const [draft, setDraft] = useState<AdminQuestion | null>(null);
   const [saving, setSaving] = useState(false);
+
+  useTelegramBackButton(props.onBack);
+
+  const isOpen = editId !== null && draft !== null;
+  const handleSave = useCallback(() => {
+    if (isOpen) save();
+  }, [isOpen, draft]); // need draft to save properly, actually save is defined below so we can just call save()
+  useTelegramMainButton("Saqlash", handleSave, isOpen, saving);
 
   async function load(reset: boolean) {
     setLoading(true);
@@ -80,7 +89,12 @@ export function AdminQuestions(props: { onBack: () => void }) {
 
   return (
     <>
-      <h1>✏️ Savol muharriri</h1>
+      <div className="header-row" style={{ display: "flex", alignItems: "center", marginBottom: 16 }}>
+        {!inTg && <button className="ghost" onClick={props.onBack} style={{ margin: 0, width: "auto", padding: "8px 12px" }}>← Orqaga</button>}
+        <h1 style={{ flex: 1, textAlign: "center", margin: 0, fontSize: 20 }}>Savollar ({total})</h1>
+        {!inTg && <div style={{ width: 80 }} />}
+      </div>
+      
       <p className="subtitle">Tuzatilmagan: {needsReview} · Ko'rsatilyapti: {total}</p>
 
       <div className="tabs">
@@ -193,17 +207,18 @@ export function AdminQuestions(props: { onBack: () => void }) {
                   />
                   Hali tuzatilmagan (belgilangan qoladi, testga chiqmaydi)
                 </label>
-
-                <button className="primary" disabled={saving} onClick={save}>
-                  {saving ? "Saqlanmoqda…" : "💾 Saqlash"}
-                </button>
-              </div>
-            )}
-          </div>
+                  {!inTg && (
+                    <button className="primary" disabled={saving} onClick={save}>
+                      {saving ? "Saqlanmoqda…" : "💾 Saqlash"}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
         );
       })}
 
-      {loading && items.length === 0 && <div className="center">Yuklanmoqda…</div>}
+      {loading && items.length === 0 && <Skeleton />}
       {!loading && items.length === 0 && <div className="center">Topilmadi</div>}
       {items.length < total && (
         <button className="ghost" onClick={() => load(false)} disabled={loading}>
@@ -211,9 +226,11 @@ export function AdminQuestions(props: { onBack: () => void }) {
         </button>
       )}
 
-      <button className="ghost" onClick={props.onBack} style={{ marginTop: 12 }}>
-        ← Orqaga
-      </button>
+      {!inTg && (
+        <button className="ghost" onClick={props.onBack} style={{ marginTop: 24 }}>
+          ← Orqaga
+        </button>
+      )}
     </>
   );
 }

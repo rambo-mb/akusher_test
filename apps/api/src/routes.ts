@@ -18,6 +18,7 @@ import type {
 } from "@aku/shared";
 import { EXAM_SECONDS_PER_QUESTION } from "@aku/shared";
 import { prisma } from "./db.js";
+import { env } from "./env.js";
 import {
   effectiveStatus,
   isAdminTelegramId,
@@ -67,6 +68,10 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         isAdmin: admin,
         telegramId: String(user.telegramId),
         accessUntil: user.accessUntil ? user.accessUntil.toISOString() : null,
+      },
+      config: {
+        adminUsername: env.ADMIN_USERNAME,
+        priceInfo: env.PRICE_INFO,
       },
     };
     return res;
@@ -390,6 +395,25 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         data: { finishedAt: new Date(), correctCount, score },
       });
 
+      const today = new Date().toISOString().split("T")[0];
+      const yesterdayDate = new Date();
+      yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+      const yesterday = yesterdayDate.toISOString().split("T")[0];
+
+      const u = await prisma.user.findUnique({ where: { id: userId } });
+      if (u) {
+        let newStreak = u.streak;
+        if (u.lastActiveOn === yesterday) {
+          newStreak += 1;
+        } else if (u.lastActiveOn !== today) {
+          newStreak = 1;
+        }
+        await prisma.user.update({
+          where: { id: userId },
+          data: { streak: newStreak, lastActiveOn: today },
+        });
+      }
+
       const items = attempt.answers
         .map((a) => ({
           questionId: a.questionId,
@@ -417,9 +441,20 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     });
     const totalAnswered = answers.length;
     const totalCorrect = answers.filter((a) => a.isCorrect).length;
-    const [totalAttempts, best] = await Promise.all([
+    const today = new Date().toISOString().split("T")[0];
+    const [totalAttempts, best, user, answersToday, masteredCount] = await Promise.all([
       prisma.attempt.count({ where: { userId, finishedAt: { not: null } } }),
       prisma.attempt.aggregate({ where: { userId }, _max: { score: true } }),
+      prisma.user.findUnique({ where: { id: userId } }),
+      prisma.attemptAnswer.count({
+        where: {
+          attempt: { userId },
+          answeredAt: {
+            gte: new Date(today + "T00:00:00.000Z"),
+          },
+        },
+      }),
+      prisma.userQuestion.count({ where: { userId, box: { gte: 5 } } }),
     ]);
     const mistakesCount = await getDueReviewCount(userId);
     return {
@@ -429,7 +464,84 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       accuracy: totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
       mistakesCount,
       bestScore: best._max.score ?? 0,
+      streak: user?.streak ?? 0,
+      dailyGoal: user?.dailyGoal ?? 20,
+      answeredToday: answersToday,
+      masteredCount,
     };
+  });
+
+  // --- Daily Goal ---
+  app.put<{ Body: { goal: number } }>(
+    "/api/me/daily-goal",
+    { preHandler: [requireAuth, requireApproved] },
+    async (req) => {
+      const goal = Math.max(1, req.body?.goal ?? 20);
+      await prisma.user.update({
+        where: { id: req.userId! },
+        data: { dailyGoal: goal },
+      });
+      return { ok: true, dailyGoal: goal };
+    },
+  );
+
+  // --- Gamification: History & Stats ---
+  app.get("/api/attempts", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+    const attempts = await prisma.attempt.findMany({
+      where: { userId: req.userId!, finishedAt: { not: null } },
+      orderBy: { finishedAt: "desc" },
+      take: 50,
+      select: { id: true, mode: true, count: true, correctCount: true, score: true, finishedAt: true },
+    });
+    return attempts.map(a => ({
+      ...a,
+      finishedAt: a.finishedAt!.toISOString(),
+    }));
+  });
+
+  app.get<{ Params: { id: string } }>("/api/attempts/:id", { preHandler: [requireAuth, requireApproved] }, async (req, reply) => {
+    const attempt = await prisma.attempt.findFirst({
+      where: { id: Number(req.params.id), userId: req.userId!, finishedAt: { not: null } },
+      include: { answers: { include: { question: true } } },
+    });
+    if (!attempt) return reply.code(404).send({ error: "Seans topilmadi" });
+
+    const items = attempt.answers
+      .map((a) => ({
+        questionId: a.questionId,
+        number: a.question.number,
+        stem: a.question.stem,
+        options: a.question.options,
+        correctIndex: a.question.correctIndex,
+        selectedIndex: a.selectedIndex,
+        isCorrect: a.isCorrect,
+        explanation: a.question.explanation,
+      }))
+      .sort((x, y) => x.number - y.number);
+
+    const res: FinishResponse = {
+      attemptId: attempt.id,
+      total: attempt.count,
+      correctCount: attempt.correctCount,
+      score: attempt.score,
+      items,
+    };
+    return res;
+  });
+
+  app.get("/api/stats/weak", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+    const weak = await prisma.userQuestion.findMany({
+      where: { userId: req.userId!, wrongCount: { gt: 0 } },
+      orderBy: { wrongCount: "desc" },
+      take: 20,
+      include: { question: { select: { stem: true } } },
+    });
+    return weak.map(w => ({
+      questionId: w.questionId,
+      stem: w.question.stem,
+      wrongCount: w.wrongCount,
+      box: w.box,
+    }));
   });
 
   // --- Home badge'lari: takrorlash va belgilangan savol soni ---
