@@ -91,23 +91,33 @@ npx cloudflared tunnel --url http://localhost:5173   # yoki: ngrok http 5173
 
 ## 3. Railway'ga deploy
 
-Repo'da tayyor config: `railway.api.json` va `railway.web.json` (build/start buyruqlari).
+Repo'da tayyor: **`.railway/railway.ts`** — Postgres + API + Web servislarini (build/start/
+healthcheck/replicas) bitta faylda IaC bilan belgilaydi. (Eski `railway.json` "config-as-code"
+deprecated.)
+
+Deploy (Railway CLI):
+```bash
+npm i -g @railway/cli && railway login
+# .railway/railway.ts dagi REPO = "<OWNER>/<REPO>" ni o'z repongizga almashtiring
+railway init
+railway up          # db + api + web provision qilinadi
+```
 
 **0.** Kodни GitHub repo'ga push qiling. Railway'da **New Project → Deploy from GitHub repo**.
 
 **1. PostgreSQL:** `+ New → Database → PostgreSQL`. `DATABASE_URL` avtomatik yaratiladi.
 
 **2. API servisi:** `+ New → GitHub Repo` (o'sha repo).
-   - Settings → **Config-as-code path**: `railway.api.json`
-   - Variables:
-     - `DATABASE_URL` = `${{Postgres.DATABASE_URL}}` (Postgres servisiga reference)
+   - Build/start/replicas — `.railway/railway.ts` dan avtomatik (qo'lda kiritish shart emas)
+   - Variables (maxfiy — dashboard'da):
+     - `DATABASE_URL` — avtomatik (IaC'da `db.env.DATABASE_URL`)
      - `BOT_TOKEN` = BotFather tokeningiz
      - `JWT_SECRET` = uzun tasodifiy satr
      - `WEB_APP_URL` = `https://example.com` (vaqtincha — web tayyor bo'lgach yangilaymiz)
    - Settings → **Networking → Generate Domain** → API URL'ni oling (masalan `https://api-xxx.up.railway.app`).
 
 **3. Web servisi:** yana `+ New → GitHub Repo` (o'sha repo).
-   - Settings → **Config-as-code path**: `railway.web.json`
+   - Build/start — `.railway/railway.ts` dan avtomatik
    - Variables: `VITE_API_URL` = 2-qadamdagi **API URL** (build vaqtida ishlatiladi)
    - Networking → **Generate Domain** → Web URL'ni oling (masalan `https://web-xxx.up.railway.app`).
 
@@ -123,8 +133,8 @@ Repo'da tayyor config: `railway.api.json` va `railway.web.json` (build/start buy
    Xohlasangiz `/setmenubutton` bilan ham qo'lda sozlash mumkin.
 
 > **Eslatma:** Bot **long-polling**da (webhook shart emas) — API servisi **1 replika**da
-> ishlashi kerak (bir nechta replika bo'lsa polling to'qnashadi). `railway.api.json` da
-> `numReplicas: 1` qo'yilgan.
+> ishlashi kerak (bir nechta replika bo'lsa polling to'qnashadi). `.railway/railway.ts` da
+> `replicas: 1` qo'yilgan.
 >
 > **Tartib muhim:** avval API (WEB_APP_URL vaqtinchalik) → web → keyin WEB_APP_URL ni yangilash.
 > Aks holda API ishga tushmaydi (WEB_APP_URL majburiy).

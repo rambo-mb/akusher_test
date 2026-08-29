@@ -14,5 +14,8 @@
     "seed": "pnpm --filter @aku/api seed",
     "db:up": "docker compose up -d db",
     "db:push": "pnpm --filter @aku/api prisma db push"
+  },
+  "dependencies": {
+    "@railway/cli": "^5.45.7"
   }
 }
