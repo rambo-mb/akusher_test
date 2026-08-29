@@ -1,0 +1,31 @@
+{
+  "name": "@aku/api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "start:prod": "prisma db push --skip-generate --accept-data-loss && node dist/index.js",
+    "seed": "tsx prisma/seed.ts",
+    "prisma": "prisma",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@aku/shared": "workspace:*",
+    "@fastify/cors": "^9.0.1",
+    "@prisma/client": "^5.19.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.28.1",
+    "grammy": "^1.30.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^22.5.0",
+    "prisma": "^5.19.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  }
+}

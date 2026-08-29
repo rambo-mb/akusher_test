@@ -1,0 +1,15 @@
+node_modules/
+dist/
+build/
+.env
+.env.local
+*.log
+.DS_Store
+# python
+__pycache__/
+*.pyc
+# prisma
+apps/api/prisma/migrations/dev.db*
+apps/api/generated/
+# data intermediate (final questions.json is committed)
+data/questions.raw.json

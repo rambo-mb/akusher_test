@@ -1,0 +1,66 @@
+generator client {
+  provider = "prisma-client-js"
+  // pnpm bilan ishonchli tip generatsiyasi uchun paket ichiga chiqaramiz
+  output   = "../generated/prisma"
+  // Lokal (Windows) + Railway/Render (Debian, OpenSSL 3) uchun engine
+  binaryTargets = ["native", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Question {
+  id           Int      @id
+  number       Int
+  topic        String
+  stem         String
+  options      String[]
+  correctIndex Int
+  needsReview  Boolean  @default(false)
+
+  answers AttemptAnswer[]
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  telegramId BigInt   @unique
+  firstName  String
+  username   String?
+  createdAt  DateTime @default(now())
+
+  attempts Attempt[]
+}
+
+model Attempt {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  mode         String
+  count        Int
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  correctCount Int       @default(0)
+  score        Int       @default(0)
+
+  user    User            @relation(fields: [userId], references: [id])
+  answers AttemptAnswer[]
+
+  @@index([userId])
+}
+
+model AttemptAnswer {
+  id            Int      @id @default(autoincrement())
+  attemptId     Int
+  questionId    Int
+  selectedIndex Int
+  isCorrect     Boolean
+  answeredAt    DateTime @default(now())
+
+  attempt  Attempt  @relation(fields: [attemptId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+}
