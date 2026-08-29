@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { Bot } from "grammy";
 import type {
+  AdminQuestion,
   AdminStats,
   AdminUser,
   AdminUserDetail,
@@ -27,6 +28,7 @@ import {
   verifyInitData,
 } from "./auth.js";
 import { approvalKeyboard, approveUser, blockUser, notifyAdmin, notifyUser } from "./access.js";
+import { getDueReviewCount, getDueReviewIds, recordAnswer } from "./srs.js";
 
 const MAX_COUNT = 100;
 
@@ -192,6 +194,73 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     },
   );
 
+  // --- Admin: savol muharriri (ro'yxat) ---
+  app.get<{ Querystring: { filter?: string; search?: string; skip?: string; take?: string } }>(
+    "/api/admin/questions",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req) => {
+      const search = (req.query.search ?? "").trim();
+      const where = {
+        ...(req.query.filter === "needsReview" ? { needsReview: true } : {}),
+        ...(search ? { stem: { contains: search, mode: "insensitive" as const } } : {}),
+      };
+      const take = Math.min(Math.max(Number(req.query.take ?? 20), 1), 50);
+      const skip = Math.max(Number(req.query.skip ?? 0), 0);
+      const [questions, total, needsReview] = await Promise.all([
+        prisma.question.findMany({ where, orderBy: { number: "asc" }, skip, take }),
+        prisma.question.count({ where }),
+        prisma.question.count({ where: { needsReview: true } }),
+      ]);
+      const list: AdminQuestion[] = questions.map((q) => ({
+        id: q.id,
+        number: q.number,
+        topic: q.topic,
+        stem: q.stem,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        needsReview: q.needsReview,
+        explanation: q.explanation,
+        category: q.category,
+      }));
+      return { questions: list, total, needsReview };
+    },
+  );
+
+  // --- Admin: savolni tahrirlash ---
+  app.put<{ Params: { id: string }; Body: Partial<AdminQuestion> }>(
+    "/api/admin/questions/:id",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req, reply) => {
+      const id = Number(req.params.id);
+      const b = req.body ?? {};
+      const data: {
+        stem?: string;
+        options?: string[];
+        correctIndex?: number;
+        explanation?: string | null;
+        category?: string | null;
+        needsReview?: boolean;
+      } = {};
+      if (typeof b.stem === "string") data.stem = b.stem.trim();
+      if (Array.isArray(b.options)) {
+        data.options = b.options.map((o) => String(o).trim()).filter(Boolean);
+      }
+      if (typeof b.correctIndex === "number") data.correctIndex = b.correctIndex;
+      if (typeof b.explanation === "string") data.explanation = b.explanation.trim() || null;
+      if (typeof b.category === "string") data.category = b.category.trim() || null;
+      if (typeof b.needsReview === "boolean") data.needsReview = b.needsReview;
+
+      // Yaroqlilik: to'g'ri javob indeksi variantlar ichida bo'lishi kerak
+      const opts = data.options;
+      const ci = data.correctIndex;
+      if (opts && ci !== undefined && (ci < 0 || ci >= opts.length)) {
+        return reply.code(400).send({ error: "correctIndex variantlar chegarasidan tashqarida" });
+      }
+      const updated = await prisma.question.update({ where: { id }, data });
+      return { ok: true, needsReview: updated.needsReview };
+    },
+  );
+
   // --- Quiz: start ---
   app.post<{ Body: StartQuizRequest }>(
     "/api/quiz/start",
@@ -204,10 +273,20 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       let questionIds: number[];
 
       if (mode === "mistakes") {
-        questionIds = await getMistakeQuestionIds(userId);
-        questionIds = shuffle(questionIds).slice(0, count);
+        questionIds = shuffle(await getDueReviewIds(userId, count));
         if (questionIds.length === 0) {
-          return reply.code(400).send({ error: "Xatolar yo'q — avval boshqa test yeching" });
+          return reply
+            .code(400)
+            .send({ error: "Takrorlash uchun savol yo'q — avval boshqa test yeching" });
+        }
+      } else if (mode === "bookmarks") {
+        const marks = await prisma.bookmark.findMany({
+          where: { userId, question: { needsReview: false, correctIndex: { gte: 0 } } },
+          select: { questionId: true },
+        });
+        questionIds = shuffle(marks.map((m) => m.questionId)).slice(0, count);
+        if (questionIds.length === 0) {
+          return reply.code(400).send({ error: "Belgilangan savol yo'q — testда 🔖 bosing" });
         }
       } else {
         // Tasodifiy: faqat toza savollar (tekshirilgan, to'g'ri javobi bor, 4 variant)
@@ -219,13 +298,21 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         questionIds = rows.map((r) => r.id);
       }
 
-      const questions = await prisma.question.findMany({
-        where: { id: { in: questionIds } },
-        select: { id: true, number: true, topic: true, stem: true, options: true },
-      });
-      // random tartibni saqlash
+      const [rows, marks] = await Promise.all([
+        prisma.question.findMany({
+          where: { id: { in: questionIds } },
+          select: { id: true, number: true, topic: true, stem: true, options: true },
+        }),
+        prisma.bookmark.findMany({
+          where: { userId, questionId: { in: questionIds } },
+          select: { questionId: true },
+        }),
+      ]);
+      const marked = new Set(marks.map((m) => m.questionId));
       const order = new Map(questionIds.map((id, i) => [id, i]));
-      questions.sort((a, b) => (order.get(a.id)! - order.get(b.id)!));
+      const questions = rows
+        .map((q) => ({ ...q, bookmarked: marked.has(q.id) }))
+        .sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 
       const attempt = await prisma.attempt.create({
         data: { userId, mode, count: questions.length },
@@ -258,13 +345,23 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
 
       const isCorrect = selectedIndex === question.correctIndex;
 
+      const existing = await prisma.attemptAnswer.findUnique({
+        where: { attemptId_questionId: { attemptId, questionId } },
+      });
       await prisma.attemptAnswer.upsert({
         where: { attemptId_questionId: { attemptId, questionId } },
         update: { selectedIndex, isCorrect },
         create: { attemptId, questionId, selectedIndex, isCorrect },
       });
 
-      const res: AnswerResponse = { isCorrect, correctIndex: question.correctIndex };
+      // SRS holatini yangilaymiz (faqat birinchi javobda, qayta yozishda emas)
+      if (!existing) await recordAnswer(userId, questionId, isCorrect);
+
+      const res: AnswerResponse = {
+        isCorrect,
+        correctIndex: question.correctIndex,
+        explanation: question.explanation,
+      };
       return res;
     },
   );
@@ -302,6 +399,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
           correctIndex: a.question.correctIndex,
           selectedIndex: a.selectedIndex,
           isCorrect: a.isCorrect,
+          explanation: a.question.explanation,
         }))
         .sort((x, y) => x.number - y.number);
 
@@ -323,22 +421,45 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       prisma.attempt.count({ where: { userId, finishedAt: { not: null } } }),
       prisma.attempt.aggregate({ where: { userId }, _max: { score: true } }),
     ]);
-    const mistakes = await getMistakeQuestionIds(userId);
+    const mistakesCount = await getDueReviewCount(userId);
     return {
       totalAttempts,
       totalAnswered,
       totalCorrect,
       accuracy: totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
-      mistakesCount: mistakes.length,
+      mistakesCount,
       bestScore: best._max.score ?? 0,
     };
   });
 
-  // --- Mistakes count (Home ekranida ko'rsatish uchun) ---
+  // --- Home badge'lari: takrorlash va belgilangan savol soni ---
   app.get("/api/mistakes/count", { preHandler: [requireAuth, requireApproved] }, async (req) => {
-    const ids = await getMistakeQuestionIds(req.userId!);
-    return { count: ids.length };
+    const count = await getDueReviewCount(req.userId!);
+    return { count };
   });
+  app.get("/api/bookmarks/count", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+    const count = await prisma.bookmark.count({ where: { userId: req.userId! } });
+    return { count };
+  });
+
+  // --- Bookmark toggle ---
+  app.post<{ Params: { questionId: string } }>(
+    "/api/bookmarks/:questionId/toggle",
+    { preHandler: [requireAuth, requireApproved] },
+    async (req) => {
+      const userId = req.userId!;
+      const questionId = Number(req.params.questionId);
+      const existing = await prisma.bookmark.findUnique({
+        where: { userId_questionId: { userId, questionId } },
+      });
+      if (existing) {
+        await prisma.bookmark.delete({ where: { id: existing.id } });
+        return { bookmarked: false };
+      }
+      await prisma.bookmark.create({ data: { userId, questionId } });
+      return { bookmarked: true };
+    },
+  );
 
   // --- Leaderboard ---
   app.get("/api/leaderboard", { preHandler: [requireAuth, requireAdmin] }, async (req): Promise<LeaderboardEntry[]> => {
@@ -365,21 +486,6 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       isMe: r.userId === userId,
     }));
   });
-}
-
-// Foydalanuvchi xato qilgan va hali to'g'ri javob bermagan savollar
-async function getMistakeQuestionIds(userId: number): Promise<number[]> {
-  const answers = await prisma.attemptAnswer.findMany({
-    where: { attempt: { userId } },
-    select: { questionId: true, isCorrect: true },
-  });
-  const wrong = new Set<number>();
-  const correct = new Set<number>();
-  for (const a of answers) {
-    if (a.isCorrect) correct.add(a.questionId);
-    else wrong.add(a.questionId);
-  }
-  return [...wrong].filter((id) => !correct.has(id));
 }
 
 function shuffle<T>(arr: T[]): T[] {

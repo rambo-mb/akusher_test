@@ -19,8 +19,43 @@ model Question {
   options      String[]
   correctIndex Int
   needsReview  Boolean  @default(false)
+  explanation  String? // izoh (nega to'g'ri)
+  category     String? // mavzu/bo'lim (ixtiyoriy)
 
-  answers AttemptAnswer[]
+  answers       AttemptAnswer[]
+  bookmarks     Bookmark[]
+  userQuestions UserQuestion[]
+}
+
+model Bookmark {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  questionId Int
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@index([userId])
+}
+
+// Spaced repetition holati (har user-savol uchun)
+model UserQuestion {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  questionId  Int
+  box         Int      @default(0) // 0..5, 5 = o'zlashtirilgan
+  dueAt       DateTime @default(now())
+  wrongCount  Int      @default(0)
+  rightStreak Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  user     User     @relation(fields: [userId], references: [id])
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@unique([userId, questionId])
+  @@index([userId, dueAt])
 }
 
 model User {
@@ -32,7 +67,9 @@ model User {
   accessUntil DateTime? // obuna tugash sanasi; null = cheksiz
   createdAt   DateTime  @default(now())
 
-  attempts Attempt[]
+  attempts      Attempt[]
+  bookmarks     Bookmark[]
+  userQuestions UserQuestion[]
 
   @@index([status])
 }

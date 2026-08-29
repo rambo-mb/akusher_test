@@ -1,4 +1,6 @@
 import type {
+  AdminQuestion,
+  AdminQuestionsResponse,
   AdminStats,
   AdminUser,
   AdminUserDetail,
@@ -63,6 +65,23 @@ export const api = {
   },
   mistakesCount() {
     return req<{ count: number }>("/api/mistakes/count");
+  },
+  bookmarksCount() {
+    return req<{ count: number }>("/api/bookmarks/count");
+  },
+  bookmarkToggle(questionId: number) {
+    return req<{ bookmarked: boolean }>(`/api/bookmarks/${questionId}/toggle`, "POST");
+  },
+  adminQuestions(params: { filter?: string; search?: string; skip?: number; take?: number }) {
+    const q = new URLSearchParams();
+    if (params.filter) q.set("filter", params.filter);
+    if (params.search) q.set("search", params.search);
+    if (params.skip) q.set("skip", String(params.skip));
+    if (params.take) q.set("take", String(params.take));
+    return req<AdminQuestionsResponse>(`/api/admin/questions?${q.toString()}`);
+  },
+  adminUpdateQuestion(id: number, patch: Partial<AdminQuestion>) {
+    return req<{ ok: boolean; needsReview: boolean }>(`/api/admin/questions/${id}`, "PUT", patch);
   },
   leaderboard() {
     return req<LeaderboardEntry[]>("/api/leaderboard");

@@ -19,27 +19,32 @@ interface RawQuestion {
  * data/questions.json dagi TOZA savollarni bazaga idempotent yuklaydi (upsert).
  * Foydalanuvchi javoblarini o'chirmaydi — har ishga tushishда xavfsiz chaqirsa bo'ladi.
  */
+/**
+ * data/questions.json dagi BARCHA savollarni (needsReview ham) bazaga qo'shadi.
+ * Faqat YANGI savollar qo'shiladi — mavjudlari o'zgartirilmaydi (admin tahrirlari saqlanadi).
+ * Quiz faqat needsReview=false savollarni beradi; admin muharrir needsReview'larni tuzatadi.
+ */
 export async function seedQuestions(prisma: PrismaClient): Promise<number> {
   const path = resolve(__dirname, "../../../data/questions.json");
   const all: RawQuestion[] = JSON.parse(readFileSync(path, "utf-8"));
-  const clean = all.filter(
-    (q) => !q.needsReview && q.correctIndex >= 0 && q.options.length >= 2,
-  );
 
-  for (const q of clean) {
-    const data = {
-      number: q.number,
-      topic: q.topic,
-      stem: q.stem,
-      options: q.options,
-      correctIndex: q.correctIndex,
-      needsReview: q.needsReview,
-    };
-    await prisma.question.upsert({
-      where: { id: q.id },
-      update: data,
-      create: { id: q.id, ...data },
+  const existing = await prisma.question.findMany({ select: { id: true } });
+  const have = new Set(existing.map((e) => e.id));
+  const toAdd = all.filter((q) => !have.has(q.id));
+
+  if (toAdd.length) {
+    await prisma.question.createMany({
+      data: toAdd.map((q) => ({
+        id: q.id,
+        number: q.number,
+        topic: q.topic,
+        stem: q.stem,
+        options: q.options,
+        correctIndex: q.correctIndex,
+        needsReview: q.needsReview,
+      })),
+      skipDuplicates: true,
     });
   }
-  return clean.length;
+  return toAdd.length; // yangi qo'shilganlar soni
 }

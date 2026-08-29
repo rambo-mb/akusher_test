@@ -4,6 +4,7 @@ import { env } from "./env.js";
 import { prisma } from "./db.js";
 import { registerRoutes } from "./routes.js";
 import { seedQuestions } from "./seed.js";
+import { backfillSrs } from "./srs.js";
 import { createBot, setupMenuButton } from "./bot.js";
 
 async function main() {
@@ -20,8 +21,10 @@ async function main() {
   try {
     const n = await seedQuestions(prisma);
     app.log.info(`Savollar yuklandi/yangilandi: ${n} ta`);
+    const b = await backfillSrs();
+    if (b > 0) app.log.info(`SRS holati tiklandi: ${b} yozuv`);
   } catch (e) {
-    app.log.error(`Seed xatosi: ${e}`);
+    app.log.error(`Seed/backfill xatosi: ${e}`);
   }
 
   // Botni chidamli ishga tushirish: 409 (deploy paytida ikki instansiya) yoki

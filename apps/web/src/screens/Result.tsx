@@ -58,6 +58,12 @@ export function Result(props: { data: FinishResponse; onHome: () => void }) {
                   </div>
                 );
               })}
+              {it.explanation && (
+                <div className="explain">
+                  <span className="explain-t">💡 Izoh</span>
+                  {it.explanation}
+                </div>
+              )}
             </div>
           ))}
         </>

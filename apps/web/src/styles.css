@@ -189,6 +189,33 @@ button.ghost {
   color: var(--red);
   font-weight: 700;
 }
+.qmeta-right {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.bmark {
+  cursor: pointer;
+  font-size: 16px;
+}
+
+/* Izoh bloki */
+.explain {
+  background: color-mix(in srgb, var(--tg-button) 12%, var(--tg-bg));
+  border-left: 3px solid var(--tg-button);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+.explain-t {
+  display: block;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--tg-button);
+  margin-bottom: 3px;
+}
 
 .stem {
   font-size: 17px;
@@ -500,6 +527,59 @@ button.ghost {
   color: var(--tg-text);
   resize: vertical;
   margin-bottom: 10px;
+}
+
+/* Savol muharriri */
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  margin-bottom: 12px;
+}
+.search-input {
+  margin-bottom: 0;
+}
+.fl {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tg-hint);
+  margin: 4px 0 5px;
+}
+.opt-edit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.opt-edit .letter {
+  color: var(--tg-hint);
+  font-weight: 700;
+}
+.opt-input {
+  flex: 1;
+  margin-bottom: 0;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+.opt-rm {
+  border: none;
+  background: color-mix(in srgb, var(--red) 15%, transparent);
+  color: var(--red);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.cb {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  color: var(--tg-hint);
+  margin: 10px 0;
+  cursor: pointer;
 }
 .review-note {
   font-size: 12px;

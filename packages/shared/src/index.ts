@@ -1,12 +1,13 @@
 // Frontend va backend o'rtasida umumiy tiplar
 
-export type QuizMode = "random" | "exam" | "study" | "mistakes";
+export type QuizMode = "random" | "exam" | "study" | "mistakes" | "bookmarks";
 
 export const QUIZ_MODES: { id: QuizMode; title: string; description: string }[] = [
   { id: "random", title: "Random test", description: "Tasodifiy N ta savol" },
   { id: "exam", title: "Imtihon", description: "Vaqt chegarasi bilan real imtihon" },
   { id: "study", title: "O'rganish", description: "Har javobdan keyin darhol natija" },
-  { id: "mistakes", title: "Xatolar ustida", description: "Avval xato qilingan savollar" },
+  { id: "mistakes", title: "Takrorlash", description: "Xato savollar (interval bilan)" },
+  { id: "bookmarks", title: "Belgilangan", description: "🔖 saqlagan savollaringiz" },
 ];
 
 // Boshlash so'rovi
@@ -22,6 +23,7 @@ export interface QuizQuestion {
   topic: string;
   stem: string;
   options: string[];
+  bookmarked: boolean;
 }
 
 export interface StartQuizResponse {
@@ -40,6 +42,7 @@ export interface AnswerRequest {
 export interface AnswerResponse {
   isCorrect: boolean;
   correctIndex: number;
+  explanation: string | null;
 }
 
 export interface ReviewItem {
@@ -50,6 +53,7 @@ export interface ReviewItem {
   correctIndex: number;
   selectedIndex: number; // -1 = javob berilmagan
   isCorrect: boolean;
+  explanation: string | null;
 }
 
 export interface FinishResponse {
@@ -99,6 +103,25 @@ export interface AdminUserDetail extends AdminUser {
   correct: number;
   accuracy: number;
   lastActive: string | null;
+}
+
+// Admin savol muharriri
+export interface AdminQuestion {
+  id: number;
+  number: number;
+  topic: string;
+  stem: string;
+  options: string[];
+  correctIndex: number;
+  needsReview: boolean;
+  explanation: string | null;
+  category: string | null;
+}
+
+export interface AdminQuestionsResponse {
+  questions: AdminQuestion[];
+  total: number;
+  needsReview: number;
 }
 
 // Obuna muddati variantlari (kun); 0 = cheksiz

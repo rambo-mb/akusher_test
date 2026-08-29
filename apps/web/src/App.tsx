@@ -9,6 +9,7 @@ import { Stats } from "./screens/Stats.js";
 import { Leaderboard } from "./screens/Leaderboard.js";
 import { Gate } from "./screens/Gate.js";
 import { Admin } from "./screens/Admin.js";
+import { AdminQuestions } from "./screens/AdminQuestions.js";
 
 type AuthUser = AuthResponse["user"];
 
@@ -18,7 +19,8 @@ type View =
   | { name: "result"; data: FinishResponse }
   | { name: "stats" }
   | { name: "leaderboard" }
-  | { name: "admin" };
+  | { name: "admin" }
+  | { name: "adminQuestions" };
 
 export function App() {
   const [ready, setReady] = useState(false);
@@ -62,6 +64,7 @@ export function App() {
           onStats={() => setView({ name: "stats" })}
           onLeaderboard={() => setView({ name: "leaderboard" })}
           onAdmin={() => setView({ name: "admin" })}
+          onAdminQuestions={() => setView({ name: "adminQuestions" })}
         />
       )}
       {allowed && view.name === "quiz" && (
@@ -77,6 +80,9 @@ export function App() {
       {allowed && view.name === "stats" && <Stats onBack={() => setView({ name: "home" })} />}
       {allowed && view.name === "leaderboard" && <Leaderboard onBack={() => setView({ name: "home" })} />}
       {allowed && view.name === "admin" && <Admin onBack={() => setView({ name: "home" })} />}
+      {allowed && view.name === "adminQuestions" && (
+        <AdminQuestions onBack={() => setView({ name: "home" })} />
+      )}
     </div>
   );
 }

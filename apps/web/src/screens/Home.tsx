@@ -10,18 +10,24 @@ export function Home(props: {
   onStats: () => void;
   onLeaderboard: () => void;
   onAdmin: () => void;
+  onAdminQuestions: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
   const [mistakes, setMistakes] = useState(0);
+  const [bookmarks, setBookmarks] = useState(0);
   const [stats, setStats] = useState<MeStats | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     api.mistakesCount().then((r) => setMistakes(r.count)).catch(() => {});
+    api.bookmarksCount().then((r) => setBookmarks(r.count)).catch(() => {});
     api.stats().then(setStats).catch(() => {});
   }, []);
+
+  const badgeCount = (id: QuizMode) =>
+    id === "mistakes" ? mistakes : id === "bookmarks" ? bookmarks : -1;
 
   async function start() {
     setLoading(true);
@@ -60,7 +66,8 @@ export function Home(props: {
 
       <div className="mode-grid">
         {QUIZ_MODES.map((m) => {
-          const disabled = m.id === "mistakes" && mistakes === 0;
+          const bc = badgeCount(m.id);
+          const disabled = bc === 0; // mistakes/bookmarks bo'sh bo'lsa
           return (
             <button
               key={m.id}
@@ -73,7 +80,7 @@ export function Home(props: {
             >
               <div className="mtitle">{m.title}</div>
               <div className="mdesc">{m.description}</div>
-              {m.id === "mistakes" && mistakes > 0 && <span className="badge">{mistakes} ta</span>}
+              {bc > 0 && <span className="badge">{bc} ta</span>}
             </button>
           );
         })}
@@ -105,7 +112,8 @@ export function Home(props: {
       {props.isAdmin && (
         <>
           <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
-          <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar (admin)</button>
+          <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar</button>
+          <button className="ghost admin-btn" onClick={props.onAdminQuestions}>✏️ Savol muharriri</button>
         </>
       )}
     </>

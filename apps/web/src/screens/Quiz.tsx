@@ -17,6 +17,10 @@ export function Quiz(props: {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(timeLimitSec ?? 0);
+  const [explanations, setExplanations] = useState<Record<number, string | null>>({});
+  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>(() =>
+    Object.fromEntries(questions.map((qq) => [qq.id, qq.bookmarked])),
+  );
   const committed = useRef<Set<number>>(new Set());
   const finishing = useRef(false);
 
@@ -82,9 +86,22 @@ export function Quiz(props: {
       const res = await submitAnswer(q.id, i);
       if (res) {
         setRevealed((r) => ({ ...r, [q.id]: res.correctIndex }));
+        setExplanations((e) => ({ ...e, [q.id]: res.explanation }));
         haptic(res.isCorrect ? "success" : "error");
       }
       setBusy(false);
+    }
+  }
+
+  async function toggleBookmark() {
+    tap();
+    const cur = bookmarks[q.id] ?? false;
+    setBookmarks((b) => ({ ...b, [q.id]: !cur })); // optimistik
+    try {
+      const r = await api.bookmarkToggle(q.id);
+      setBookmarks((b) => ({ ...b, [q.id]: r.bookmarked }));
+    } catch {
+      setBookmarks((b) => ({ ...b, [q.id]: cur })); // qaytaramiz
     }
   }
 
@@ -121,13 +138,18 @@ export function Quiz(props: {
             ⏱ {mm}:{ss}
           </span>
         )}
-        <span
-          onClick={() => {
-            if (window.confirm("Testdan chiqasizmi? Joriy natija saqlanmaydi.")) props.onExit();
-          }}
-          style={{ cursor: "pointer" }}
-        >
-          ✕ Chiqish
+        <span className="qmeta-right">
+          <span className="bmark" onClick={toggleBookmark} title="Belgilash">
+            {bookmarks[q.id] ? "🔖" : "🏷️"}
+          </span>
+          <span
+            onClick={() => {
+              if (window.confirm("Testdan chiqasizmi? Joriy natija saqlanmaydi.")) props.onExit();
+            }}
+            style={{ cursor: "pointer" }}
+          >
+            ✕
+          </span>
         </span>
       </div>
 
@@ -149,6 +171,13 @@ export function Quiz(props: {
             </button>
           );
         })}
+
+        {isRevealed && explanations[q.id] && (
+          <div className="explain">
+            <span className="explain-t">💡 Izoh</span>
+            {explanations[q.id]}
+          </div>
+        )}
       </div>
 
       {error && <p className="review-note" style={{ color: "var(--red)" }}>{error}</p>}
