@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FinishResponse, StartQuizResponse } from "@aku/shared";
 import { api } from "../api.js";
 import { haptic, tap } from "../telegram.js";
@@ -12,71 +12,100 @@ export function Quiz(props: {
 }) {
   const { attemptId, mode, questions, timeLimitSec } = props.data;
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState<number | null>(null); // study rejimida to'g'ri indeks
+  const [selections, setSelections] = useState<Record<number, number>>({});
+  const [revealed, setRevealed] = useState<Record<number, number>>({}); // qId -> correctIndex (study)
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(timeLimitSec ?? 0);
+  const committed = useRef<Set<number>>(new Set());
   const finishing = useRef(false);
 
   const q = questions[index];
   const isStudy = mode === "study";
   const isLast = index === questions.length - 1;
+  const selected = selections[q.id] ?? null;
+  const isRevealed = isStudy && revealed[q.id] !== undefined;
 
-  const finish = useCallback(async () => {
+  async function submitAnswer(qid: number, sel: number) {
+    if (committed.current.has(qid)) return null;
+    try {
+      const res = await api.answer(attemptId, { questionId: qid, selectedIndex: sel });
+      committed.current.add(qid);
+      return res;
+    } catch {
+      return null; // yozib bo'lmasa ham davom etamiz
+    }
+  }
+
+  async function doFinish() {
     if (finishing.current) return;
     finishing.current = true;
     setBusy(true);
-    const res = await api.finish(attemptId);
-    props.onFinish(res);
-  }, [attemptId, props]);
+    setError(null);
+    // Joriy savol javobini yozamiz (agar hali yozilmagan bo'lsa)
+    if (selected !== null) await submitAnswer(q.id, selected);
+    try {
+      const res = await api.finish(attemptId);
+      props.onFinish(res);
+    } catch (e) {
+      setError((e as Error).message || "Yakunlashda xatolik");
+      finishing.current = false;
+      setBusy(false);
+    }
+  }
 
-  // Imtihon taymeri
+  // Imtihon taymeri (stale closure'dan qochish uchun ref)
+  const finishRef = useRef(doFinish);
+  finishRef.current = doFinish;
   useEffect(() => {
     if (mode !== "exam" || !timeLimitSec) return;
     const t = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 1) {
           clearInterval(t);
-          finish();
+          finishRef.current();
           return 0;
         }
         return s - 1;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, [mode, timeLimitSec, finish]);
+  }, [mode, timeLimitSec]);
 
   async function choose(i: number) {
-    if (selected !== null || busy) return;
+    if (isRevealed || busy) return;
     tap();
-    setSelected(i);
-    setBusy(true);
-    try {
-      const res = await api.answer(attemptId, { questionId: q.id, selectedIndex: i });
-      if (isStudy) {
-        setRevealed(res.correctIndex);
+    setSelections((s) => ({ ...s, [q.id]: i }));
+    // O'rganish rejimida: darhol yozib, to'g'ri javobni ochamiz
+    if (isStudy) {
+      setBusy(true);
+      const res = await submitAnswer(q.id, i);
+      if (res) {
+        setRevealed((r) => ({ ...r, [q.id]: res.correctIndex }));
         haptic(res.isCorrect ? "success" : "error");
       }
-    } catch {
-      // yozib bo'lmasa ham davom etamiz
-    } finally {
       setBusy(false);
     }
   }
 
-  function next() {
-    if (selected === null) return;
+  async function next() {
+    if (selected === null || busy) return;
     if (isLast) {
-      finish();
+      await doFinish();
       return;
     }
+    // Boshqa rejimlarда javobni shu yerда yozamiz (o'zgartirilgan bo'lsa oxirgisi)
+    if (!isStudy) {
+      setBusy(true);
+      await submitAnswer(q.id, selected);
+      setBusy(false);
+    }
     setIndex((i) => i + 1);
-    setSelected(null);
-    setRevealed(null);
   }
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
   const ss = String(timeLeft % 60).padStart(2, "0");
+  const answeredCount = Object.keys(selections).length;
 
   return (
     <>
@@ -92,37 +121,52 @@ export function Quiz(props: {
             ⏱ {mm}:{ss}
           </span>
         )}
-        <span onClick={props.onExit} style={{ cursor: "pointer" }}>
-          Chiqish
+        <span
+          onClick={() => {
+            if (window.confirm("Testdan chiqasizmi? Joriy natija saqlanmaydi.")) props.onExit();
+          }}
+          style={{ cursor: "pointer" }}
+        >
+          ✕ Chiqish
         </span>
       </div>
 
-      <div className="stem">{q.stem}</div>
+      <div className="qbody" key={index}>
+        <div className="stem">{q.stem}</div>
 
-      {q.options.map((opt, i) => {
-        let cls = "option";
-        if (isStudy && revealed !== null) {
-          if (i === revealed) cls += " correct";
-          else if (i === selected) cls += " wrong";
-        } else if (i === selected) {
-          cls += " selected";
-        }
-        return (
-          <button
-            key={i}
-            className={cls}
-            disabled={selected !== null}
-            onClick={() => choose(i)}
-          >
-            <span className="letter">{LETTERS[i]}</span>
-            <span>{opt}</span>
-          </button>
-        );
-      })}
+        {q.options.map((opt, i) => {
+          let cls = "option";
+          if (isRevealed) {
+            if (i === revealed[q.id]) cls += " correct";
+            else if (i === selected) cls += " wrong";
+          } else if (i === selected) {
+            cls += " selected";
+          }
+          return (
+            <button key={i} className={cls} disabled={isRevealed} onClick={() => choose(i)}>
+              <span className="letter">{LETTERS[i]}</span>
+              <span>{opt}</span>
+            </button>
+          );
+        })}
+      </div>
 
-      <button className="primary" onClick={next} disabled={selected === null || busy} style={{ marginTop: 8 }}>
-        {isLast ? "Yakunlash" : "Keyingi"}
+      {error && <p className="review-note" style={{ color: "var(--red)" }}>{error}</p>}
+
+      <button
+        className="primary"
+        onClick={next}
+        disabled={selected === null || busy}
+        style={{ marginTop: 8 }}
+      >
+        {busy ? "…" : isLast ? "Yakunlash" : "Keyingi"}
       </button>
+
+      {!isStudy && (
+        <p className="review-note" style={{ textAlign: "center" }}>
+          Javobni tanlang — kerak bo'lsa o'zgartirishingiz mumkin. {answeredCount}/{questions.length} belgilandi.
+        </p>
+      )}
     </>
   );
 }

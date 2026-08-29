@@ -133,17 +133,17 @@ export async function registerRoutes(app: FastifyInstance) {
       });
       if (!attempt) return reply.code(404).send({ error: "Seans topilmadi" });
 
-      const correctCount = attempt.answers.filter((a) => a.isCorrect).length;
+      const answeredCorrect = attempt.answers.filter((a) => a.isCorrect).length;
       const total = attempt.count;
-      const score = total > 0 ? Math.round((correctCount / total) * 100) : 0;
+      const correctCount = Math.min(answeredCorrect, total);
+      const score = total > 0 ? Math.min(100, Math.round((correctCount / total) * 100)) : 0;
 
       await prisma.attempt.update({
         where: { id: attemptId },
         data: { finishedAt: new Date(), correctCount, score },
       });
 
-      const wrong = attempt.answers
-        .filter((a) => !a.isCorrect)
+      const items = attempt.answers
         .map((a) => ({
           questionId: a.questionId,
           number: a.question.number,
@@ -151,9 +151,11 @@ export async function registerRoutes(app: FastifyInstance) {
           options: a.question.options,
           correctIndex: a.question.correctIndex,
           selectedIndex: a.selectedIndex,
-        }));
+          isCorrect: a.isCorrect,
+        }))
+        .sort((x, y) => x.number - y.number);
 
-      const res: FinishResponse = { attemptId, total, correctCount, score, wrong };
+      const res: FinishResponse = { attemptId, total, correctCount, score, items };
       return res;
     },
   );

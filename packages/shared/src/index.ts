@@ -42,12 +42,22 @@ export interface AnswerResponse {
   correctIndex: number;
 }
 
+export interface ReviewItem {
+  questionId: number;
+  number: number;
+  stem: string;
+  options: string[];
+  correctIndex: number;
+  selectedIndex: number; // -1 = javob berilmagan
+  isCorrect: boolean;
+}
+
 export interface FinishResponse {
   attemptId: number;
   total: number;
   correctCount: number;
   score: number; // foizda 0..100
-  wrong: { questionId: number; number: number; stem: string; options: string[]; correctIndex: number; selectedIndex: number }[];
+  items: ReviewItem[]; // barcha savollar bo'yicha to'liq ko'rib chiqish
 }
 
 export interface AuthResponse {

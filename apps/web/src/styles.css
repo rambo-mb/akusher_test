@@ -53,11 +53,37 @@ h1 {
   margin-bottom: 12px;
 }
 
+.statstrip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.statstrip > div {
+  background: var(--tg-secondary-bg);
+  border-radius: var(--radius);
+  padding: 12px 6px;
+  text-align: center;
+}
+.statstrip .sv {
+  font-size: 20px;
+  font-weight: 800;
+}
+.statstrip .sl {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin-top: 2px;
+}
+
 .mode-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
   margin-bottom: 16px;
+}
+.mode.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 .mode {
@@ -206,6 +232,24 @@ button.ghost {
 .option:disabled {
   cursor: default;
 }
+.option:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+/* Savol almashganda silliq paydo bo'lish */
+.qbody {
+  animation: fadeSlide 0.22s ease;
+}
+@keyframes fadeSlide {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 .result-score {
   font-size: 54px;
@@ -286,21 +330,55 @@ button.ghost {
   color: var(--tg-hint);
   margin-top: 4px;
 }
-.wrong-item {
-  margin-bottom: 14px;
+/* Result — to'liq ko'rib chiqish */
+.review-card {
+  text-align: left;
 }
-.wrong-item .wq {
+.review-card .wq {
   font-weight: 600;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+.review-card .wq .ok {
+  color: var(--green);
+  font-weight: 800;
+}
+.review-card .wq .no-mark {
+  color: var(--red);
+  font-weight: 800;
+}
+.rev-opt {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border-radius: 10px;
   margin-bottom: 6px;
-}
-.wrong-item .wa {
   font-size: 14px;
-  padding: 3px 0;
+  line-height: 1.35;
+  background: var(--tg-bg);
 }
-.wrong-item .ok {
+.rev-opt.correct {
+  background: color-mix(in srgb, var(--green) 16%, var(--tg-bg));
+}
+.rev-opt.wrong {
+  background: color-mix(in srgb, var(--red) 16%, var(--tg-bg));
+}
+.rev-opt .letter {
+  color: var(--tg-hint);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.tagr {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.tagr.ok {
   color: var(--green);
 }
-.wrong-item .no {
+.tagr.no {
   color: var(--red);
-  text-decoration: line-through;
 }
