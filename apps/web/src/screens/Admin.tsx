@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import type { AdminStats, AdminUser, UserStatus } from "@aku/shared";
+import type { AdminStats, AdminUser, AdminUserDetail, UserStatus } from "@aku/shared";
+import { ACCESS_DURATIONS } from "@aku/shared";
 import { api } from "../api.js";
 import { tap } from "../telegram.js";
 
@@ -7,7 +8,13 @@ const STATUS_LABEL: Record<UserStatus, string> = {
   pending: "Kutilmoqda",
   approved: "Ruxsatli",
   blocked: "Bloklangan",
+  expired: "Muddat tugagan",
 };
+
+function daysLeft(iso: string | null): number {
+  if (!iso) return 0;
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
+}
 
 export function Admin(props: { onBack: () => void }) {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
@@ -15,6 +22,11 @@ export function Admin(props: { onBack: () => void }) {
   const [busyId, setBusyId] = useState(0);
   const [err, setErr] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | UserStatus>("all");
+  const [selectedId, setSelectedId] = useState(0);
+  const [detail, setDetail] = useState<AdminUserDetail | null>(null);
+  const [bcOpen, setBcOpen] = useState(false);
+  const [bcText, setBcText] = useState("");
+  const [bcMsg, setBcMsg] = useState<string | null>(null);
 
   async function load() {
     try {
@@ -29,16 +41,73 @@ export function Admin(props: { onBack: () => void }) {
     load();
   }, []);
 
-  async function act(id: number, action: "approve" | "block") {
+  async function selectUser(id: number) {
+    tap();
+    if (selectedId === id) {
+      setSelectedId(0);
+      setDetail(null);
+      return;
+    }
+    setSelectedId(id);
+    setDetail(null);
+    try {
+      setDetail(await api.adminUserDetail(id));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function refreshDetail(id: number) {
+    if (selectedId === id) {
+      try {
+        setDetail(await api.adminUserDetail(id));
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  async function approve(id: number, days: number) {
     tap();
     setBusyId(id);
     setErr(null);
     try {
-      if (action === "approve") await api.adminApprove(id);
-      else await api.adminBlock(id);
+      await api.adminApprove(id, days);
       await load();
+      await refreshDetail(id);
     } catch (e) {
       setErr((e as Error).message);
+    } finally {
+      setBusyId(0);
+    }
+  }
+
+  async function block(id: number) {
+    tap();
+    setBusyId(id);
+    setErr(null);
+    try {
+      await api.adminBlock(id);
+      await load();
+      await refreshDetail(id);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusyId(0);
+    }
+  }
+
+  async function sendBroadcast() {
+    const t = bcText.trim();
+    if (!t) return;
+    setBusyId(-1);
+    setBcMsg(null);
+    try {
+      const r = await api.adminBroadcast(t);
+      setBcMsg(`✅ ${r.sent}/${r.total} ga yuborildi`);
+      setBcText("");
+    } catch (e) {
+      setBcMsg((e as Error).message);
     } finally {
       setBusyId(0);
     }
@@ -53,7 +122,7 @@ export function Admin(props: { onBack: () => void }) {
       {stats && (
         <div className="statstrip">
           <div>
-            <div className="sv">{stats.pending}</div>
+            <div className="sv" style={{ color: "#e08e0b" }}>{stats.pending}</div>
             <div className="sl">Kutilyapti</div>
           </div>
           <div>
@@ -64,6 +133,27 @@ export function Admin(props: { onBack: () => void }) {
             <div className="sv">{stats.total}</div>
             <div className="sl">Jami</div>
           </div>
+        </div>
+      )}
+
+      <button className="ghost" onClick={() => setBcOpen((o) => !o)}>📢 Xabar yuborish</button>
+      {bcOpen && (
+        <div className="card">
+          <textarea
+            className="ta"
+            rows={3}
+            value={bcText}
+            onChange={(e) => setBcText(e.target.value)}
+            placeholder="Barcha faol foydalanuvchilarga xabar…"
+          />
+          <button
+            className="primary"
+            disabled={busyId === -1 || !bcText.trim()}
+            onClick={sendBroadcast}
+          >
+            {busyId === -1 ? "Yuborilmoqda…" : "Yuborish"}
+          </button>
+          {bcMsg && <p className="review-note">{bcMsg}</p>}
         </div>
       )}
 
@@ -79,32 +169,73 @@ export function Admin(props: { onBack: () => void }) {
       {!users && <div className="center">Yuklanmoqda…</div>}
       {users && shown.length === 0 && <div className="center">Bo'sh</div>}
 
-      {shown.map((u) => (
-        <div key={u.id} className="user-row">
-          <div className="user-main">
-            <div className="user-name">
-              {u.firstName}
-              {u.username && <span className="user-uname"> @{u.username}</span>}
+      {shown.map((u) => {
+        const open = selectedId === u.id;
+        const sub =
+          u.status === "approved"
+            ? u.accessUntil
+              ? `${daysLeft(u.accessUntil)} kun qoldi`
+              : "♾ muddatsiz"
+            : u.status === "expired"
+              ? "muddat tugagan"
+              : "";
+        return (
+          <div key={u.id}>
+            <div className={`user-row ${open ? "open" : ""}`} onClick={() => selectUser(u.id)}>
+              <div className="user-main">
+                <div className="user-name">
+                  {u.firstName}
+                  {u.username && <span className="user-uname"> @{u.username}</span>}
+                </div>
+                <div className="user-meta">
+                  <span className={`ubadge ${u.status}`}>{STATUS_LABEL[u.status]}</span>
+                  <span className="user-sub">
+                    · {u.answered} javob{sub ? ` · ${sub}` : ""}
+                  </span>
+                </div>
+              </div>
+              <span className="user-chev">{open ? "▲" : "▼"}</span>
             </div>
-            <div className="user-meta">
-              <span className={`ubadge ${u.status}`}>{STATUS_LABEL[u.status]}</span>
-              <span className="user-sub">· {u.answered} javob · ID {u.telegramId}</span>
-            </div>
-          </div>
-          <div className="user-actions">
-            {u.status !== "approved" && (
-              <button className="btn-approve" disabled={busyId === u.id} onClick={() => act(u.id, "approve")}>
-                ✓
-              </button>
+
+            {open && (
+              <div className="user-panel">
+                {detail ? (
+                  <div className="user-detail">
+                    <span>📝 {detail.attempts} test · 🎯 {detail.accuracy}% aniqlik</span>
+                    <span>🆔 {u.telegramId}</span>
+                  </div>
+                ) : (
+                  <div className="review-note">Yuklanmoqda…</div>
+                )}
+                <div className="dur-label">
+                  {u.status === "approved" ? "Muddat qo'shish:" : "Ruxsat berish:"}
+                </div>
+                <div className="dur-row">
+                  {ACCESS_DURATIONS.map((d) => (
+                    <button
+                      key={d.days}
+                      className="dur-btn"
+                      disabled={busyId === u.id}
+                      onClick={() => approve(u.id, d.days)}
+                    >
+                      {u.status === "approved" && d.days > 0 ? `+${d.label}` : d.label}
+                    </button>
+                  ))}
+                </div>
+                {u.status !== "blocked" && (
+                  <button
+                    className="btn-block-full"
+                    disabled={busyId === u.id}
+                    onClick={() => block(u.id)}
+                  >
+                    ⛔ Bloklash
+                  </button>
+                )}
+              </div>
             )}
-            {u.status !== "blocked" && (
-              <button className="btn-block" disabled={busyId === u.id} onClick={() => act(u.id, "block")}>
-                ⛔
-              </button>
-            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
 
       <button className="ghost" onClick={props.onBack} style={{ marginTop: 12 }}>
         ← Orqaga

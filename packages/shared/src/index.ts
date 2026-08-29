@@ -60,7 +60,8 @@ export interface FinishResponse {
   items: ReviewItem[]; // barcha savollar bo'yicha to'liq ko'rib chiqish
 }
 
-export type UserStatus = "pending" | "approved" | "blocked";
+// DB status: pending|approved|blocked. "expired" — hisoblangan holat (approved + muddat o'tgan).
+export type UserStatus = "pending" | "approved" | "blocked" | "expired";
 
 export interface AuthResponse {
   token: string;
@@ -71,6 +72,7 @@ export interface AuthResponse {
     status: UserStatus;
     isAdmin: boolean;
     telegramId: string;
+    accessUntil: string | null; // ISO sana yoki null (cheksiz)
   };
 }
 
@@ -80,6 +82,7 @@ export interface AdminUser {
   firstName: string;
   username: string | null;
   status: UserStatus;
+  accessUntil: string | null;
   createdAt: string;
   answered: number;
 }
@@ -90,6 +93,21 @@ export interface AdminStats {
   approved: number;
   blocked: number;
 }
+
+export interface AdminUserDetail extends AdminUser {
+  attempts: number;
+  correct: number;
+  accuracy: number;
+  lastActive: string | null;
+}
+
+// Obuna muddati variantlari (kun); 0 = cheksiz
+export const ACCESS_DURATIONS: { label: string; days: number }[] = [
+  { label: "30 kun", days: 30 },
+  { label: "90 kun", days: 90 },
+  { label: "1 yil", days: 365 },
+  { label: "Cheksiz", days: 0 },
+];
 
 export interface MeStats {
   totalAttempts: number;

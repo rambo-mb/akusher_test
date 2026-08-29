@@ -1,6 +1,7 @@
 import type {
   AdminStats,
   AdminUser,
+  AdminUserDetail,
   AnswerRequest,
   AnswerResponse,
   AuthResponse,
@@ -72,10 +73,20 @@ export const api = {
   adminUsers() {
     return req<{ users: AdminUser[]; stats: AdminStats }>("/api/admin/users");
   },
-  adminApprove(id: number) {
-    return req<{ id: number; status: UserStatus }>(`/api/admin/users/${id}/approve`, "POST");
+  adminUserDetail(id: number) {
+    return req<AdminUserDetail>(`/api/admin/users/${id}`);
+  },
+  adminApprove(id: number, days: number) {
+    return req<{ id: number; status: UserStatus; accessUntil: string | null }>(
+      `/api/admin/users/${id}/approve`,
+      "POST",
+      { days },
+    );
   },
   adminBlock(id: number) {
     return req<{ id: number; status: UserStatus }>(`/api/admin/users/${id}/block`, "POST");
+  },
+  adminBroadcast(text: string) {
+    return req<{ sent: number; total: number }>("/api/admin/broadcast", "POST", { text });
   },
 };

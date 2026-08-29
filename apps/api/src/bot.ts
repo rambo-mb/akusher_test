@@ -2,7 +2,7 @@ import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
 import { prisma } from "./db.js";
 import { isAdminTelegramId } from "./auth.js";
-import { approveUser, blockUser, notifyAdmin } from "./access.js";
+import { approvalKeyboard, approveUser, blockUser, notifyAdmin } from "./access.js";
 
 export function createBot() {
   const bot = new Bot(env.BOT_TOKEN);
@@ -76,27 +76,26 @@ export function createBot() {
     }
     if (user.status === "blocked") return ctx.answerCallbackQuery("Siz bloklangansiz");
     const uname = user.username ? `@${user.username}` : "(username yo'q)";
-    const kb = new InlineKeyboard()
-      .text("✅ Ruxsat berish", `approve:${user.id}`)
-      .text("⛔ Rad etish", `reject:${user.id}`);
     await notifyAdmin(
       bot,
       `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
-      kb,
+      approvalKeyboard(user.id),
     );
     await ctx.answerCallbackQuery("So'rovingiz yuborildi ✅");
     await ctx.editMessageText("📩 So'rovingiz adminга yuborildi. Tasdiqlashini kuting.");
   });
 
-  // Admin: tasdiqlash
-  bot.callbackQuery(/^approve:(\d+)$/, async (ctx) => {
+  // Admin: tasdiqlash (ap:<kun>:<userId>, 0 = cheksiz)
+  bot.callbackQuery(/^ap:(\d+):(\d+)$/, async (ctx) => {
     if (!ctx.from || !isAdminTelegramId(ctx.from.id)) {
       return ctx.answerCallbackQuery("Faqat admin uchun");
     }
-    const userId = Number(ctx.match[1]);
-    const user = await approveUser(bot, userId);
+    const days = Number(ctx.match[1]);
+    const userId = Number(ctx.match[2]);
+    const user = await approveUser(bot, userId, days);
+    const info = user.accessUntil ? `${user.accessUntil.toISOString().slice(0, 10)} gacha` : "cheksiz";
     await ctx.answerCallbackQuery("Tasdiqlandi ✅");
-    await ctx.editMessageText(`✅ Ruxsat berildi: ${user.firstName} (ID ${user.telegramId})`);
+    await ctx.editMessageText(`✅ Ruxsat berildi: ${user.firstName} (${info})`);
   });
 
   // Admin: rad etish / bloklash

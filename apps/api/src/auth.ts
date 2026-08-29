@@ -8,6 +8,19 @@ export function isAdminTelegramId(telegramId: bigint | number | string): boolean
   return !!env.ADMIN_TELEGRAM_ID && String(telegramId) === env.ADMIN_TELEGRAM_ID;
 }
 
+type StatusUser = { status: string; accessUntil: Date | null; telegramId: bigint };
+
+export function isExpired(user: { accessUntil: Date | null }): boolean {
+  return !!user.accessUntil && user.accessUntil.getTime() <= Date.now();
+}
+
+/** Hisoblangan holat: admin->approved; approved+muddat o'tgan->expired; aks holda DB status */
+export function effectiveStatus(user: StatusUser): "pending" | "approved" | "blocked" | "expired" {
+  if (isAdminTelegramId(user.telegramId)) return "approved";
+  if (user.status === "approved" && isExpired(user)) return "expired";
+  return user.status as "pending" | "approved" | "blocked";
+}
+
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -82,8 +95,8 @@ export async function requireApproved(req: FastifyRequest, reply: FastifyReply) 
   if (!user) return reply.code(401).send({ error: "Foydalanuvchi topilmadi" });
   const admin = isAdminTelegramId(user.telegramId);
   req.isAdmin = admin;
-  if (!admin && user.status !== "approved") {
-    return reply.code(403).send({ error: "Ruxsat berilmagan", status: user.status });
+  if (!admin && (user.status !== "approved" || isExpired(user))) {
+    return reply.code(403).send({ error: "Ruxsat berilmagan", status: effectiveStatus(user) });
   }
 }
 

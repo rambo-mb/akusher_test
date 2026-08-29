@@ -422,6 +422,85 @@ button.ghost {
 .admin-btn {
   border: 1px solid color-mix(in srgb, var(--tg-button) 45%, transparent);
 }
+
+/* Admin — kengaytiriladigan qator + panel */
+.user-row {
+  cursor: pointer;
+}
+.user-row.open {
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin-bottom: 0;
+}
+.user-chev {
+  color: var(--tg-hint);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.user-panel {
+  background: color-mix(in srgb, var(--tg-secondary-bg) 60%, var(--tg-bg));
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  animation: fadeSlide 0.18s ease;
+}
+.user-detail {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--tg-hint);
+  margin-bottom: 10px;
+}
+.dur-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.dur-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dur-btn {
+  flex: 1;
+  min-width: 62px;
+  padding: 9px 6px;
+  border: none;
+  border-radius: 10px;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dur-btn:disabled {
+  opacity: 0.5;
+}
+.btn-block-full {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red) 18%, var(--tg-bg));
+  color: var(--red);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ta {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--tg-hint) 30%, transparent);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 15px;
+  font-family: inherit;
+  background: var(--tg-bg);
+  color: var(--tg-text);
+  resize: vertical;
+  margin-bottom: 10px;
+}
 .review-note {
   font-size: 12px;
   color: var(--tg-hint);

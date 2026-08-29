@@ -26,10 +26,11 @@ model Question {
 model User {
   id         Int      @id @default(autoincrement())
   telegramId BigInt   @unique
-  firstName  String
-  username   String?
-  status     String   @default("pending") // pending | approved | blocked
-  createdAt  DateTime @default(now())
+  firstName   String
+  username    String?
+  status      String    @default("pending") // pending | approved | blocked
+  accessUntil DateTime? // obuna tugash sanasi; null = cheksiz
+  createdAt   DateTime  @default(now())
 
   attempts Attempt[]
 

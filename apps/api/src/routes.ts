@@ -1,9 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import type { Bot } from "grammy";
-import { InlineKeyboard } from "grammy";
 import type {
   AdminStats,
   AdminUser,
+  AdminUserDetail,
   AnswerRequest,
   AnswerResponse,
   AuthResponse,
@@ -18,6 +18,7 @@ import type {
 import { EXAM_SECONDS_PER_QUESTION } from "@aku/shared";
 import { prisma } from "./db.js";
 import {
+  effectiveStatus,
   isAdminTelegramId,
   requireAdmin,
   requireApproved,
@@ -25,7 +26,7 @@ import {
   signToken,
   verifyInitData,
 } from "./auth.js";
-import { approveUser, blockUser, notifyAdmin } from "./access.js";
+import { approvalKeyboard, approveUser, blockUser, notifyAdmin, notifyUser } from "./access.js";
 
 const MAX_COUNT = 100;
 
@@ -60,34 +61,32 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         id: user.id,
         firstName: user.firstName,
         username: user.username,
-        status: user.status as UserStatus,
+        status: effectiveStatus(user),
         isAdmin: admin,
         telegramId: String(user.telegramId),
+        accessUntil: user.accessUntil ? user.accessUntil.toISOString() : null,
       },
     };
     return res;
   });
 
-  // --- Access: ruxsat so'rash (adminга bildirishnoma) ---
+  // --- Access: ruxsat / obunani yangilash so'rovi (adminга bildirishnoma) ---
   app.post("/api/access/request", { preHandler: requireAuth }, async (req, reply) => {
     const user = await prisma.user.findUnique({ where: { id: req.userId! } });
     if (!user) return reply.code(401).send({ error: "Foydalanuvchi topilmadi" });
-    if (isAdminTelegramId(user.telegramId) || user.status === "approved") {
-      return { status: "approved" as UserStatus };
-    }
-    if (user.status === "blocked") {
-      return reply.code(403).send({ error: "Siz bloklangansiz", status: "blocked" });
+    const eff = effectiveStatus(user);
+    if (eff === "approved") return { status: "approved" as UserStatus };
+    if (eff === "blocked") {
+      return reply.code(403).send({ error: "Siz bloklangansiz", status: "blocked" as UserStatus });
     }
     const uname = user.username ? `@${user.username}` : "(username yo'q)";
-    const kb = new InlineKeyboard()
-      .text("✅ Ruxsat berish", `approve:${user.id}`)
-      .text("⛔ Rad etish", `reject:${user.id}`);
+    const kind = eff === "expired" ? "♻️ Obunani yangilash so'rovi" : "🔔 Yangi ruxsat so'rovi";
     await notifyAdmin(
       bot,
-      `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
-      kb,
+      `${kind}:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
+      approvalKeyboard(user.id),
     );
-    return { status: "pending" as UserStatus };
+    return { status: eff as UserStatus };
   });
 
   // --- Admin: foydalanuvchilar ro'yxati ---
@@ -104,7 +103,8 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       telegramId: String(u.telegramId),
       firstName: u.firstName,
       username: u.username,
-      status: u.status as UserStatus,
+      status: effectiveStatus(u),
+      accessUntil: u.accessUntil ? u.accessUntil.toISOString() : null,
       createdAt: u.createdAt.toISOString(),
       answered: cmap.get(u.id) ?? 0,
     }));
@@ -117,13 +117,49 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     return { users: list, stats };
   });
 
-  // --- Admin: tasdiqlash / bloklash ---
-  app.post<{ Params: { id: string } }>(
+  // --- Admin: foydalanuvchi tafsiloti ---
+  app.get<{ Params: { id: string } }>(
+    "/api/admin/users/:id",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req, reply) => {
+      const id = Number(req.params.id);
+      const u = await prisma.user.findUnique({ where: { id } });
+      if (!u) return reply.code(404).send({ error: "Topilmadi" });
+      const answers = await prisma.attemptAnswer.findMany({
+        where: { attempt: { userId: id } },
+        select: { isCorrect: true, answeredAt: true },
+        orderBy: { answeredAt: "desc" },
+      });
+      const attempts = await prisma.attempt.count({
+        where: { userId: id, finishedAt: { not: null } },
+      });
+      const answered = answers.length;
+      const correct = answers.filter((a) => a.isCorrect).length;
+      const detail: AdminUserDetail = {
+        id: u.id,
+        telegramId: String(u.telegramId),
+        firstName: u.firstName,
+        username: u.username,
+        status: effectiveStatus(u),
+        accessUntil: u.accessUntil ? u.accessUntil.toISOString() : null,
+        createdAt: u.createdAt.toISOString(),
+        answered,
+        attempts,
+        correct,
+        accuracy: answered ? Math.round((correct / answered) * 100) : 0,
+        lastActive: answers[0]?.answeredAt ? answers[0].answeredAt.toISOString() : null,
+      };
+      return detail;
+    },
+  );
+
+  // --- Admin: tasdiqlash (muddat bilan) / bloklash ---
+  app.post<{ Params: { id: string }; Body: { days?: number } }>(
     "/api/admin/users/:id/approve",
     { preHandler: [requireAuth, requireAdmin] },
     async (req) => {
-      const u = await approveUser(bot, Number(req.params.id));
-      return { id: u.id, status: u.status };
+      const u = await approveUser(bot, Number(req.params.id), req.body?.days);
+      return { id: u.id, status: u.status, accessUntil: u.accessUntil?.toISOString() ?? null };
     },
   );
   app.post<{ Params: { id: string } }>(
@@ -132,6 +168,27 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     async (req) => {
       const u = await blockUser(bot, Number(req.params.id));
       return { id: u.id, status: u.status };
+    },
+  );
+
+  // --- Admin: broadcast (barcha faol foydalanuvchilarga) ---
+  app.post<{ Body: { text: string } }>(
+    "/api/admin/broadcast",
+    { preHandler: [requireAuth, requireAdmin] },
+    async (req, reply) => {
+      const text = (req.body?.text ?? "").trim();
+      if (!text) return reply.code(400).send({ error: "Matn bo'sh" });
+      const users = await prisma.user.findMany({
+        where: { status: "approved" },
+        select: { telegramId: true },
+      });
+      let sent = 0;
+      for (const u of users) {
+        await notifyUser(bot, u.telegramId, `📢 ${text}`);
+        sent++;
+        await new Promise((r) => setTimeout(r, 40)); // yumshoq rate-limit
+      }
+      return { sent, total: users.length };
     },
   );
 

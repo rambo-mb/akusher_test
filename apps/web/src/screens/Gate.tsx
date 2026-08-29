@@ -49,17 +49,21 @@ export function Gate(props: { user: AuthResponse["user"]; onApproved: () => void
     );
   }
 
+  const expired = status === "expired";
+
   return (
     <div className="gate">
-      <div className="gate-emoji">🔒</div>
-      <h1>Ruxsat kerak</h1>
+      <div className="gate-emoji">{expired ? "⏰" : "🔒"}</div>
+      <h1>{expired ? "Obunangiz tugadi" : "Ruxsat kerak"}</h1>
       <p className="subtitle">
-        Bu bot yopiq. Foydalanish uchun admindan ruxsat oling.
+        {expired
+          ? "Davom etish uchun obunani yangilang — admin tasdiqlaydi."
+          : "Bu bot yopiq. Foydalanish uchun admindan ruxsat oling."}
       </p>
 
       {!requested ? (
         <button className="primary" onClick={request} disabled={busy}>
-          {busy ? "Yuborilmoqda…" : "📩 Ruxsat so'rash"}
+          {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
         </button>
       ) : (
         <div className="card" style={{ textAlign: "center" }}>
