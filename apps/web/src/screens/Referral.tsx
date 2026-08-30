@@ -1,45 +1,50 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
-import { openTelegramLink, useTelegramBackButton } from "../telegram.js";
+import { openTelegramLink, useTelegramBackButton, tap, haptic, inTg } from "../telegram.js";
 import { Skeleton } from "../components/Skeleton.js";
 
 export function Referral(props: { onBack: () => void }) {
   useTelegramBackButton(props.onBack);
   const [data, setData] = useState<{ link: string; invited: number; bonusDays: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api.referral().then(setData).catch((e) => setError(e.message));
   }, []);
 
-  if (error) return <div className="app"><div className="center" style={{color: "var(--red)"}}>{error}</div></div>;
+  if (error) return <div className="center" style={{ color: "var(--red)" }}>{error}</div>;
   if (!data) return <Skeleton />;
 
-  function handleShare() {
-    const text = "Men akusherlik va ginekologiya bo'yicha imtihonlarga shu bot orqali tayyorlanyapman! Sen ham qo'shil 👇";
-    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(data!.link)}&text=${encodeURIComponent(text)}`;
-    openTelegramLink(shareUrl);
+  function share() {
+    tap();
+    const text =
+      "Men akusherlik va ginekologiya imtihoniga shu bot orqali tayyorlanyapman! Sen ham qo'shil 👇";
+    openTelegramLink(
+      `https://t.me/share/url?url=${encodeURIComponent(data!.link)}&text=${encodeURIComponent(text)}`,
+    );
+  }
+
+  async function copy() {
+    tap();
+    try {
+      await navigator.clipboard.writeText(data!.link);
+      setCopied(true);
+      haptic("success");
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard yopiq bo'lishi mumkin */
+    }
   }
 
   return (
-    <div className="app fade-slide">
-      <h1>🎁 Do'st taklif qil</h1>
-      <p className="subtitle">Do'stlaringizni taklif qiling va bepul obuna kunlariga ega bo'ling!</p>
-
-      <div className="card">
-        <h3 style={{ margin: "0 0 16px" }}>Sizning havolangiz</h3>
-        <div style={{
-          background: "var(--tg-bg)",
-          padding: "12px",
-          borderRadius: "8px",
-          wordBreak: "break-all",
-          fontSize: "14px",
-          marginBottom: "16px",
-          border: "1px solid var(--tg-hint)"
-        }}>
-          {data.link}
-        </div>
-        <button className="btn" onClick={handleShare}>📤 Ulashish</button>
+    <>
+      <div className="ref-hero">
+        <div className="ref-hero-emoji">🎁</div>
+        <h1 style={{ margin: "4px 0" }}>Do'st taklif qil</h1>
+        <p className="subtitle" style={{ marginBottom: 18 }}>
+          Har bir obuna sotib olgan do'st uchun sizga <b style={{ color: "var(--green)" }}>+7 kun</b> bonus!
+        </p>
       </div>
 
       <div className="statstrip" style={{ gridTemplateColumns: "1fr 1fr" }}>
@@ -48,14 +53,34 @@ export function Referral(props: { onBack: () => void }) {
           <div className="sl">Taklif qilingan</div>
         </div>
         <div>
-          <div className="sv">+{data.bonusDays}</div>
-          <div className="sl">Bonus kunlar</div>
+          <div className="sv" style={{ color: "var(--green)" }}>+{data.bonusDays}</div>
+          <div className="sl">Bonus kun</div>
         </div>
       </div>
-      
-      <p style={{ fontSize: 13, color: "var(--tg-hint)", lineHeight: 1.5, textAlign: "center" }}>
-        Qachonki siz taklif qilgan do'stingiz obuna xarid qilsa, sizning hisobingizga avtomatik tarzda +7 kun qo'shiladi.
-      </p>
-    </div>
+
+      <div className="card">
+        <div className="fl">Sizning taklif havolangiz</div>
+        <div className="ref-link-box">{data.link}</div>
+        <div className="ref-actions">
+          <button className="ghost" style={{ margin: 0, flex: 1 }} onClick={copy}>
+            {copied ? "✅ Nusxalandi" : "📋 Nusxalash"}
+          </button>
+          <button className="primary" style={{ margin: 0, flex: 1 }} onClick={share}>
+            📤 Ulashish
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="fl">Qanday ishlaydi?</div>
+        <div className="ref-step"><span className="ref-step-n">1</span><span>Havolani do'stlaringizga yuboring</span></div>
+        <div className="ref-step"><span className="ref-step-n">2</span><span>Ular bot orqali obuna sotib oladi</span></div>
+        <div className="ref-step"><span className="ref-step-n">3</span><span>Sizga avtomatik <b>+7 kun</b> qo'shiladi 🎉</span></div>
+      </div>
+
+      {!inTg && (
+        <button className="ghost" onClick={props.onBack}>← Orqaga</button>
+      )}
+    </>
   );
 }

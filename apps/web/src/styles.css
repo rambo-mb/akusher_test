@@ -452,6 +452,72 @@ button.ghost {
   border: 1px solid color-mix(in srgb, var(--tg-button) 45%, transparent);
 }
 
+/* Referral ekrani */
+.ref-hero {
+  text-align: center;
+  padding: 14px 0 4px;
+}
+.ref-hero-emoji {
+  font-size: 56px;
+  line-height: 1;
+  filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--tg-button) 40%, transparent));
+}
+.ref-link-box {
+  background: var(--tg-bg);
+  border: 1px dashed color-mix(in srgb, var(--tg-button) 55%, transparent);
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 13px;
+  word-break: break-all;
+  text-align: center;
+  color: var(--tg-link);
+  margin-bottom: 12px;
+}
+.ref-actions {
+  display: flex;
+  gap: 8px;
+}
+.ref-step {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.ref-step-n {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--tg-button);
+  color: var(--tg-button-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+/* Ulashish tugmasi (natija + referral) */
+.share-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--green);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 4px 0 16px;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--green) 35%, transparent);
+  transition: transform 0.1s;
+}
+.share-btn:active {
+  transform: scale(0.98);
+}
+
 /* Admin — kengaytiriladigan qator + panel */
 .user-row {
   cursor: pointer;

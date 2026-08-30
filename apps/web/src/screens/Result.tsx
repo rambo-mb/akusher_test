@@ -59,15 +59,16 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
       </div>
       
       {props.botUsername && (
-        <button 
-          className="btn" 
-          style={{ marginBottom: 16 }} 
+        <button
+          className="share-btn"
           onClick={() => {
             const text = `Men akusherlik testida ${Math.round(score)}% oldim! Sen ham sinab ko'r 👉`;
-            openTelegramLink(`https://t.me/share/url?url=https://t.me/${props.botUsername}&text=${encodeURIComponent(text)}`);
+            openTelegramLink(
+              `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${props.botUsername}`)}&text=${encodeURIComponent(text)}`,
+            );
           }}
         >
-          📤 Natijani ulashish
+          📤 Natijani do'stlar bilan ulashish
         </button>
       )}
 
