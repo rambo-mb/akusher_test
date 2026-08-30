@@ -251,6 +251,21 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     },
   );
 
+  app.get("/api/categories", { preHandler: [requireAuth, requireQuizAccess] }, async () => {
+    const rows = await prisma.$queryRaw<{ category: string; count: bigint }[]>`
+      SELECT category, COUNT(*) as count 
+      FROM "Question" 
+      WHERE category IS NOT NULL 
+        AND category != ''
+        AND "needsReview" = false 
+        AND "correctIndex" >= 0 
+        AND array_length(options, 1) >= 2
+      GROUP BY category
+      ORDER BY count DESC
+    `;
+    return rows.map(r => ({ name: r.category, count: Number(r.count) }));
+  });
+
   // --- Admin: savolni tahrirlash ---
   app.put<{ Params: { id: string }; Body: Partial<AdminQuestion> }>(
     "/api/admin/questions/:id",
@@ -335,11 +350,27 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         }
       } else {
         // Tasodifiy: faqat toza savollar (tekshirilgan, to'g'ri javobi bor, 4 variant)
-        const rows = await prisma.$queryRaw<{ id: number }[]>`
-          SELECT id FROM "Question"
-          WHERE "needsReview" = false AND "correctIndex" >= 0 AND array_length(options, 1) >= 2
-          ORDER BY random() LIMIT ${count}
-        `;
+        const cat = req.body?.category;
+        let rows: { id: number }[];
+        
+        if (cat) {
+          rows = await prisma.$queryRaw<{ id: number }[]>`
+            SELECT id FROM "Question"
+            WHERE "needsReview" = false 
+              AND "correctIndex" >= 0 
+              AND array_length(options, 1) >= 2
+              AND category = ${cat}
+            ORDER BY random() LIMIT ${count}
+          `;
+        } else {
+          rows = await prisma.$queryRaw<{ id: number }[]>`
+            SELECT id FROM "Question"
+            WHERE "needsReview" = false 
+              AND "correctIndex" >= 0 
+              AND array_length(options, 1) >= 2
+            ORDER BY random() LIMIT ${count}
+          `;
+        }
         questionIds = rows.map((r) => r.id);
       }
 
@@ -366,7 +397,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       const res: StartQuizResponse = {
         attemptId: attempt.id,
         mode,
-        timeLimitSec: mode === "exam" ? questions.length * EXAM_SECONDS_PER_QUESTION : null,
+        timeLimitSec: mode === "exam" ? questions.length * EXAM_SECONDS_PER_QUESTION : mode === "hard" ? questions.length * 15 : null,
         questions,
       };
       return res;
@@ -467,7 +498,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         }))
         .sort((x, y) => x.number - y.number);
 
-      const res: FinishResponse = { attemptId, total, correctCount, score, items };
+      const res: FinishResponse = { attemptId, mode: attempt.mode as QuizMode, total, correctCount, score, items };
       return res;
     },
   );
@@ -570,6 +601,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
 
     const res: FinishResponse = {
       attemptId: attempt.id,
+      mode: attempt.mode as QuizMode,
       total: attempt.count,
       correctCount: attempt.correctCount,
       score: attempt.score,

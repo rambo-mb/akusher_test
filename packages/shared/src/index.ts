@@ -1,10 +1,11 @@
 // Frontend va backend o'rtasida umumiy tiplar
 
-export type QuizMode = "random" | "exam" | "study" | "mistakes" | "bookmarks";
+export type QuizMode = "random" | "exam" | "study" | "mistakes" | "bookmarks" | "hard";
 
 export const QUIZ_MODES: { id: QuizMode; title: string; description: string }[] = [
   { id: "random", title: "Random test", description: "Tasodifiy N ta savol" },
   { id: "exam", title: "Imtihon", description: "Vaqt chegarasi bilan real imtihon" },
+  { id: "hard", title: "Qiyin rejim", description: "Vaqt juda kam (15s), izohlar yo'q" },
   { id: "study", title: "O'rganish", description: "Har javobdan keyin darhol natija" },
   { id: "mistakes", title: "Takrorlash", description: "Xato savollar (interval bilan)" },
   { id: "bookmarks", title: "Belgilangan", description: "🔖 saqlagan savollaringiz" },
@@ -14,6 +15,7 @@ export const QUIZ_MODES: { id: QuizMode; title: string; description: string }[] 
 export interface StartQuizRequest {
   mode: QuizMode;
   count: number;
+  category?: string;
 }
 
 // Savol (frontendga to'g'ri javobsiz yuboriladi)
@@ -58,6 +60,7 @@ export interface ReviewItem {
 
 export interface FinishResponse {
   attemptId: number;
+  mode: QuizMode;
   total: number;
   correctCount: number;
   score: number; // foizda 0..100

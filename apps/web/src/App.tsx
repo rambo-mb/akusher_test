@@ -15,6 +15,7 @@ import { Achievements } from "./screens/Achievements.js";
 import { History } from "./screens/History.js";
 import { Onboarding } from "./screens/Onboarding.js";
 import { Referral } from "./screens/Referral.js";
+import { Certificate } from "./screens/Certificate.js";
 import { Skeleton } from "./components/Skeleton.js";
 
 type AuthUser = AuthResponse["user"];
@@ -27,6 +28,7 @@ type View =
   | { name: "leaderboard" }
   | { name: "admin" }
   | { name: "adminQuestions" }
+  | { name: "certificate" }
   | { name: "achievements" }
   | { name: "history" }
   | { name: "referral" };
@@ -38,6 +40,19 @@ export function App() {
   const [config, setConfig] = useState<AuthResponse["config"] | null>(null);
   const [view, setView] = useState<View>({ name: "home" });
   const [showOnboarding, setShowOnboarding] = useState(!localStorage.getItem("aku_onboarded"));
+
+  const [stats, setStats] = useState<MeStats | null>(null);
+
+  // Ruxsat: admin, tasdiqlangan, YOKI pending (bepul sinov hali ishlatilmagan)
+  const allowed =
+    !!user &&
+    (user.isAdmin || user.status === "approved" || (user.status === "pending" && !user.trialUsed));
+
+  useEffect(() => {
+    if (allowed) {
+      api.stats().then(setStats).catch(() => {});
+    }
+  }, [allowed]);
 
   useEffect(() => {
     const initData = getInitData();
@@ -71,11 +86,6 @@ export function App() {
     );
   }
 
-  // Ruxsat: admin, tasdiqlangan, YOKI pending (bepul sinov hali ishlatilmagan)
-  const allowed =
-    !!user &&
-    (user.isAdmin || user.status === "approved" || (user.status === "pending" && !user.trialUsed));
-
   // Bepul sinovдан keyin (tasdiqlanmagan foydalanuvchi) — Gate'ga o'tkazamiz
   const lockAfterTrial = () => {
     if (user && !user.isAdmin && user.status !== "approved") {
@@ -105,6 +115,7 @@ export function App() {
           onAchievements={() => setView({ name: "achievements" })}
           onHistory={() => setView({ name: "history" })}
           onReferral={() => setView({ name: "referral" })}
+          onCertificate={() => setView({ name: "certificate" })}
         />
       )}
       {allowed && view.name === "quiz" && (
@@ -129,6 +140,14 @@ export function App() {
       {allowed && view.name === "admin" && <Admin onBack={() => setView({ name: "home" })} />}
       {allowed && view.name === "adminQuestions" && (
         <AdminQuestions onBack={() => setView({ name: "home" })} />
+      )}
+
+      {allowed && view.name === "certificate" && (
+        <Certificate 
+          stats={stats} 
+          user={user!} 
+          onBack={() => setView({ name: "home" })} 
+        />
       )}
       {allowed && view.name === "achievements" && (
         <Achievements onBack={() => setView({ name: "home" })} />

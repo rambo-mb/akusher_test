@@ -15,12 +15,15 @@ export function Home(props: {
   onHistory: () => void;
   onAchievements: () => void;
   onReferral: () => void;
+  onCertificate: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
   const [mistakes, setMistakes] = useState(0);
   const [bookmarks, setBookmarks] = useState(0);
   const [stats, setStats] = useState<MeStats | null>(null);
+  const [categories, setCategories] = useState<{ name: string; count: number }[]>([]);
+  const [category, setCategory] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -28,6 +31,7 @@ export function Home(props: {
     api.mistakesCount().then((r) => setMistakes(r.count)).catch(() => {});
     api.bookmarksCount().then((r) => setBookmarks(r.count)).catch(() => {});
     api.stats().then(setStats).catch(() => {});
+    api.categories().then(setCategories).catch(() => {});
   }, []);
 
   const badgeCount = (id: QuizMode) =>
@@ -37,7 +41,7 @@ export function Home(props: {
     setLoading(true);
     setErr(null);
     try {
-      const data = await api.start({ mode, count });
+      const data = await api.startQuiz(mode, count, category);
       props.onStart(data);
     } catch (e) {
       // Bepul sinov tugagan (403) -> to'lov ekraniga o'tkazamiz
@@ -135,6 +139,31 @@ export function Home(props: {
         })}
       </div>
 
+      {categories.length > 0 && mode === "random" && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Mavzular (kategoriya)</div>
+          <div className="count-row" style={{ flexWrap: "wrap", justifyContent: "flex-start" }}>
+            <button
+              className={`chip ${!category ? "active" : ""}`}
+              onClick={() => { tap(); setCategory(undefined); }}
+              style={{ fontSize: 13, padding: "6px 12px" }}
+            >
+              Barchasi
+            </button>
+            {categories.map((c) => (
+              <button
+                key={c.name}
+                className={`chip ${category === c.name ? "active" : ""}`}
+                onClick={() => { tap(); setCategory(c.name); }}
+                style={{ fontSize: 13, padding: "6px 12px" }}
+              >
+                {c.name} ({c.count})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div style={{ fontWeight: 600, marginBottom: 4 }}>Savollar soni</div>
         <div className="count-row">
@@ -160,6 +189,7 @@ export function Home(props: {
       <button className="ghost" onClick={props.onStats}>📊 Mening statistikam</button>
       <button className="ghost" onClick={props.onHistory}>📜 Tarix</button>
       <button className="ghost" onClick={props.onAchievements}>🏅 Yutuqlar</button>
+      <button className="ghost" onClick={props.onCertificate}>🎖 Sertifikat</button>
       <button className="ghost" onClick={props.onReferral}>🎁 Do'st taklif qil</button>
       <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
       

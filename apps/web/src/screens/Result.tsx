@@ -103,7 +103,7 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
                   </div>
                 );
               })}
-              {it.explanation && (
+              {it.explanation && props.data.mode !== "hard" && (
                 <div className="explain">
                   <span className="explain-t">💡 Izoh</span>
                   {it.explanation}

@@ -218,6 +218,15 @@ export function AdminQuestions(props: { onBack: () => void }) {
                   placeholder="Nega bu javob to'g'ri…"
                 />
 
+                <label className="fl">Kategoriya / Mavzu (ixtiyoriy)</label>
+                <input
+                  className="ta"
+                  style={{ marginBottom: 16 }}
+                  value={draft.category ?? ""}
+                  onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+                  placeholder="Masalan: Anatomiya"
+                />
+
                 <label className="cb">
                   <input
                     type="checkbox"

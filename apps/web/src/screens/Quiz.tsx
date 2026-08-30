@@ -144,7 +144,7 @@ export function Quiz(props: {
         <span>
           {index + 1} / {questions.length}
         </span>
-        {mode === "exam" && (
+        {(mode === "exam" || mode === "hard") && (
           <span className={`timer ${timeLeft <= 30 ? "low" : ""}`}>
             ⏱ {mm}:{ss}
           </span>
