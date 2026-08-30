@@ -9,6 +9,8 @@
   --radius: 14px;
   --green: #2ecc71;
   --red: #e74c3c;
+  --brand: var(--tg-button, #2481cc);
+  --brand-light: rgba(36, 129, 204, 0.1);
 }
 
 body[data-theme="dark"] {

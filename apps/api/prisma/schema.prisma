@@ -70,6 +70,10 @@ model User {
   dailyGoal    Int       @default(20)
   lastActiveOn String?
   trialUsed    Boolean   @default(false) // bepul sinov (1 ta test) ishlatilganmi
+  referredById Int?
+  referralBonusDays Int @default(0)
+  remindersOn  Boolean   @default(true)
+  displayName  String?
   attempts      Attempt[]
   bookmarks     Bookmark[]
   userQuestions UserQuestion[]

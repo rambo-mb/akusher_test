@@ -10,6 +10,7 @@ import { Leaderboard } from "./screens/Leaderboard.js";
 import { Gate } from "./screens/Gate.js";
 import { Admin } from "./screens/Admin.js";
 import { AdminQuestions } from "./screens/AdminQuestions.js";
+import { Splash } from "./components/Splash.js";
 import { Achievements } from "./screens/Achievements.js";
 import { History } from "./screens/History.js";
 import { Onboarding } from "./screens/Onboarding.js";
@@ -54,7 +55,7 @@ export function App() {
 
   if (error) return <div className="app"><div className="center">{error}</div></div>;
   if (!ready) {
-    return <Skeleton />;
+    return <Splash />;
   }
 
   if (showOnboarding) {

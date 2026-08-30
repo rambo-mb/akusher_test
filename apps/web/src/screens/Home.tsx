@@ -62,8 +62,11 @@ export function Home(props: {
 
   return (
     <>
-      <h1>Akusherlik va ginekologiya</h1>
-      <p className="subtitle">Imtihonga tayyorlanish — test rejimini tanlang</p>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8, marginTop: 8 }}>
+        <img src="/logo.svg" alt="Logo" style={{ width: 40, height: 40 }} />
+        <h1 style={{ margin: 0, textAlign: "left" }}>Akusherlik va ginekologiya</h1>
+      </div>
+      <p className="subtitle" style={{ textAlign: "left", marginBottom: 24 }}>Imtihonga tayyorlanish — test rejimini tanlang</p>
 
       {stats && (
         <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", marginBottom: 16 }}>
