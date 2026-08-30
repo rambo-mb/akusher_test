@@ -13,3 +13,7 @@ apps/api/prisma/migrations/dev.db*
 apps/api/generated/
 # data intermediate (final questions.json is committed)
 data/questions.raw.json
+
+# Word lock/temp files
+~$*
+*.tsbuildinfo
