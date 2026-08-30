@@ -79,8 +79,10 @@ export async function approveUser(bot: Bot, userId: number, days?: number) {
         where: { id: grantBonusTo },
         data: {
           accessUntil: rAccessUntil,
-          referralBonusDays: { increment: 7 }
-        }
+          referralBonusDays: { increment: 7 },
+          // bonus kunlar amal qilishi uchun referrer'ni faollashtiramiz (bloklangan bo'lmasa)
+          ...(referrer.status !== "blocked" ? { status: "approved" } : {}),
+        },
       });
       await notifyUser(
         bot,

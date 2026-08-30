@@ -64,7 +64,8 @@ export function Quiz(props: {
   const finishRef = useRef(doFinish);
   finishRef.current = doFinish;
   useEffect(() => {
-    if (mode !== "exam" || !timeLimitSec) return;
+    // Taymer exam VA hard rejimlarida ishlaydi
+    if ((mode !== "exam" && mode !== "hard") || !timeLimitSec) return;
     const t = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 1) {

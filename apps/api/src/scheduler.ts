@@ -22,8 +22,11 @@ export function startScheduler(bot: Bot) {
       }
     });
 
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+    // O'zbekiston (UTC+5) bo'yicha bugun boshlanishi
+    const UZ_OFFSET = 5 * 60 * 60 * 1000;
+    const uz = new Date(Date.now() + UZ_OFFSET);
+    uz.setUTCHours(0, 0, 0, 0);
+    const startOfDay = new Date(uz.getTime() - UZ_OFFSET);
 
     const kb = new InlineKeyboard().webApp("🩺 Testni boshlash", env.WEB_APP_URL);
 
@@ -47,5 +50,5 @@ export function startScheduler(bot: Bot) {
     }
     
     console.log(`[Scheduler] Sent ${sentCount} reminders.`);
-  });
+  }, { timezone: "Asia/Tashkent" });
 }

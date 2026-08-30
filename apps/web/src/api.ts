@@ -56,6 +56,9 @@ export const api = {
   start(body: StartQuizRequest) {
     return req<StartQuizResponse>("/api/quiz/start", "POST", body);
   },
+  startQuiz(mode: StartQuizRequest["mode"], count: number, category?: string) {
+    return req<StartQuizResponse>("/api/quiz/start", "POST", { mode, count, category });
+  },
   categories() {
     return req<{ name: string; count: number }[]>("/api/categories");
   },

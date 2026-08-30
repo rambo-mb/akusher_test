@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AuthResponse, FinishResponse, StartQuizResponse } from "@aku/shared";
+import type { AuthResponse, FinishResponse, MeStats, StartQuizResponse } from "@aku/shared";
 import { api } from "./api.js";
 import { getInitData } from "./telegram.js";
 import { Home } from "./screens/Home.js";
@@ -16,7 +16,6 @@ import { History } from "./screens/History.js";
 import { Onboarding } from "./screens/Onboarding.js";
 import { Referral } from "./screens/Referral.js";
 import { Certificate } from "./screens/Certificate.js";
-import { Skeleton } from "./components/Skeleton.js";
 
 type AuthUser = AuthResponse["user"];
 
