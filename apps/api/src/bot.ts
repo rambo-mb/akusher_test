@@ -19,6 +19,13 @@ export function createBot() {
   bot.command("start", async (ctx) => {
     const from = ctx.from;
     if (!from) return;
+    
+    let refId: number | undefined;
+    if (typeof ctx.match === "string" && ctx.match.startsWith("ref_")) {
+      const parsed = parseInt(ctx.match.replace("ref_", ""), 10);
+      if (!isNaN(parsed)) refId = parsed;
+    }
+
     const admin = isAdminTelegramId(from.id);
     const user = await prisma.user.upsert({
       where: { telegramId: BigInt(from.id) },
@@ -32,6 +39,7 @@ export function createBot() {
         firstName: from.first_name,
         username: from.username ?? null,
         status: admin ? "approved" : "pending",
+        referredById: refId,
       },
     });
 

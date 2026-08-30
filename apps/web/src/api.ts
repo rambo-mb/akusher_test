@@ -68,6 +68,9 @@ export const api = {
   updateDailyGoal(goal: number) {
     return req<{ ok: boolean; dailyGoal: number }>("/api/me/daily-goal", "PUT", { goal });
   },
+  referral() {
+    return req<{ link: string; invited: number; bonusDays: number }>("/api/referral");
+  },
   attempts() {
     return req<AttemptHistory[]>("/api/attempts");
   },

@@ -52,10 +52,44 @@ export async function approveUser(bot: Bot, userId: number, days?: number) {
       current?.accessUntil && current.accessUntil > now ? current.accessUntil : now;
     accessUntil = new Date(base.getTime() + days * DAY_MS);
   }
+
+  // Grant referral bonus if this is their first paid approval
+  let grantBonusTo: number | null = null;
+  if (current && current.status === "pending" && current.referredById && days && days > 0) {
+    grantBonusTo = current.referredById;
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
-    data: { status: "approved", accessUntil },
+    data: { 
+      status: "approved", 
+      accessUntil,
+      // Clear referredById so we don't grant it again on future renews?
+      // Wait, let's keep it for history if the prompt doesn't ask to clear it.
+      // But we need to make sure we don't grant it again. Checking current.status === "pending" ensures it's only on first approval.
+    },
   });
+
+  if (grantBonusTo) {
+    const referrer = await prisma.user.findUnique({ where: { id: grantBonusTo } });
+    if (referrer) {
+      const rBase = referrer.accessUntil && referrer.accessUntil > now ? referrer.accessUntil : now;
+      const rAccessUntil = new Date(rBase.getTime() + 7 * DAY_MS);
+      await prisma.user.update({
+        where: { id: grantBonusTo },
+        data: {
+          accessUntil: rAccessUntil,
+          referralBonusDays: { increment: 7 }
+        }
+      });
+      await notifyUser(
+        bot,
+        referrer.telegramId,
+        `🎁 Tabriklaymiz! Siz taklif qilgan do'stingiz obuna xarid qildi.\n\nSizga +7 kun bonus taqdim etildi. (Gacha: ${rAccessUntil.toISOString().slice(0, 10)})`
+      );
+    }
+  }
+
   const until = accessUntil
     ? `📅 Amal qiladi: ${accessUntil.toISOString().slice(0, 10)} gacha`
     : "♾ Muddatsiz";

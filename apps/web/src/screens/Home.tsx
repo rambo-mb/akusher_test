@@ -14,6 +14,7 @@ export function Home(props: {
   onAdminQuestions: () => void;
   onHistory: () => void;
   onAchievements: () => void;
+  onReferral: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
@@ -159,10 +160,11 @@ export function Home(props: {
       <button className="ghost" onClick={props.onStats}>📊 Mening statistikam</button>
       <button className="ghost" onClick={props.onHistory}>📜 Tarix</button>
       <button className="ghost" onClick={props.onAchievements}>🏅 Yutuqlar</button>
+      <button className="ghost" onClick={props.onReferral}>🎁 Do'st taklif qil</button>
+      <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
       
       {props.isAdmin && (
         <>
-          <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
           <button className="ghost admin-btn" onClick={props.onAdmin}>👥 Foydalanuvchilar</button>
           <button className="ghost admin-btn" onClick={props.onAdminQuestions}>✏️ Savol muharriri</button>
         </>

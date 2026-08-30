@@ -14,6 +14,7 @@ import { Splash } from "./components/Splash.js";
 import { Achievements } from "./screens/Achievements.js";
 import { History } from "./screens/History.js";
 import { Onboarding } from "./screens/Onboarding.js";
+import { Referral } from "./screens/Referral.js";
 import { Skeleton } from "./components/Skeleton.js";
 
 type AuthUser = AuthResponse["user"];
@@ -27,7 +28,8 @@ type View =
   | { name: "admin" }
   | { name: "adminQuestions" }
   | { name: "achievements" }
-  | { name: "history" };
+  | { name: "history" }
+  | { name: "referral" };
 
 export function App() {
   const [ready, setReady] = useState(false);
@@ -102,6 +104,7 @@ export function App() {
           onAdminQuestions={() => setView({ name: "adminQuestions" })}
           onAchievements={() => setView({ name: "achievements" })}
           onHistory={() => setView({ name: "history" })}
+          onReferral={() => setView({ name: "referral" })}
         />
       )}
       {allowed && view.name === "quiz" && (
@@ -114,6 +117,7 @@ export function App() {
       {allowed && view.name === "result" && (
         <Result
           data={view.data}
+          botUsername={config?.botUsername}
           onHome={() => {
             lockAfterTrial(); // sinov foydalanuvchisini natijadan keyin Gate'ga o'tkazadi
             setView({ name: "home" });
@@ -131,6 +135,9 @@ export function App() {
       )}
       {allowed && view.name === "history" && (
         <History onBack={() => setView({ name: "home" })} onOpenAttempt={(res) => setView({ name: "result", data: res })} />
+      )}
+      {allowed && view.name === "referral" && (
+        <Referral onBack={() => setView({ name: "home" })} />
       )}
     </div>
   );

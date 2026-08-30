@@ -75,6 +75,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       config: {
         adminUsername: env.ADMIN_USERNAME,
         priceInfo: env.PRICE_INFO,
+        botUsername: env.BOT_USERNAME,
       },
     };
     return res;
@@ -172,6 +173,22 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       return { id: u.id, status: u.status, accessUntil: u.accessUntil?.toISOString() ?? null };
     },
   );
+
+  app.get(
+    "/api/referral",
+    { preHandler: [requireAuth, requireQuizAccess] },
+    async (req, reply) => {
+      const user = await prisma.user.findUnique({ where: { id: req.userId! } });
+      if (!user) return reply.code(401).send({ error: "Not found" });
+      const invited = await prisma.user.count({ where: { referredById: user.id } });
+      return {
+        link: `https://t.me/${env.BOT_USERNAME}?start=ref_${user.id}`,
+        invited,
+        bonusDays: user.referralBonusDays,
+      };
+    },
+  );
+
   app.post<{ Params: { id: string } }>(
     "/api/admin/users/:id/block",
     { preHandler: [requireAuth, requireAdmin] },

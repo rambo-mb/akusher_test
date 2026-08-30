@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
-import { useTelegramMainButton } from "../telegram.js";
+import { useTelegramMainButton, openTelegramLink } from "../telegram.js";
 import type { FinishResponse } from "@aku/shared";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
-export function Result(props: { data: FinishResponse; onHome: () => void }) {
+export function Result(props: { data: FinishResponse; botUsername?: string; onHome: () => void }) {
   const { total, correctCount, score, items } = props.data;
   const wrongCount = items.filter((i) => !i.isCorrect).length;
   const emoji = score >= 80 ? "🎉" : score >= 60 ? "👍" : "📚";
@@ -57,6 +57,19 @@ export function Result(props: { data: FinishResponse; onHome: () => void }) {
           </>
         )}
       </div>
+      
+      {props.botUsername && (
+        <button 
+          className="btn" 
+          style={{ marginBottom: 16 }} 
+          onClick={() => {
+            const text = `Men akusherlik testida ${Math.round(score)}% oldim! Sen ham sinab ko'r 👉`;
+            openTelegramLink(`https://t.me/share/url?url=https://t.me/${props.botUsername}&text=${encodeURIComponent(text)}`);
+          }}
+        >
+          📤 Natijani ulashish
+        </button>
+      )}
 
       {items.length > 0 && (
         <>

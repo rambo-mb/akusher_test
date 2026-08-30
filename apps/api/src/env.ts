@@ -18,4 +18,5 @@ export const env = {
   ADMIN_TELEGRAM_ID: process.env.ADMIN_TELEGRAM_ID ?? "",
   ADMIN_USERNAME: process.env.ADMIN_USERNAME ?? "",
   PRICE_INFO: process.env.PRICE_INFO ?? "",
+  BOT_USERNAME: process.env.BOT_USERNAME ?? "",
 };

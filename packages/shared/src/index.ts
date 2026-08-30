@@ -82,6 +82,7 @@ export interface AuthResponse {
   config?: {
     adminUsername?: string;
     priceInfo?: string;
+    botUsername?: string;
   };
 }
 
