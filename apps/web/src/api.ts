@@ -68,6 +68,9 @@ export const api = {
   updateDailyGoal(goal: number) {
     return req<{ ok: boolean; dailyGoal: number }>("/api/me/daily-goal", "PUT", { goal });
   },
+  updateReminders(on: boolean) {
+    return req<{ ok: boolean; remindersOn: boolean }>("/api/me/reminders", "PUT", { on });
+  },
   referral() {
     return req<{ link: string; invited: number; bonusDays: number }>("/api/referral");
   },
@@ -103,8 +106,9 @@ export const api = {
   adminReimport() {
     return req<{ total: number; created: number; updated: number }>("/api/admin/reimport", "POST");
   },
-  leaderboard() {
-    return req<LeaderboardEntry[]>("/api/leaderboard");
+  leaderboard: () => req<LeaderboardEntry[]>("/api/leaderboard"),
+  updateDisplayName(name: string) {
+    return req<{ ok: boolean }>("/api/me/display-name", "PUT", { name });
   },
   requestAccess() {
     return req<{ status: UserStatus }>("/api/access/request", "POST");

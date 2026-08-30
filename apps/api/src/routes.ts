@@ -504,6 +504,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       accuracy: totalAnswered ? Math.round((totalCorrect / totalAnswered) * 100) : 0,
       mistakesCount,
       bestScore: best._max.score ?? 0,
+      remindersOn: user?.remindersOn ?? true,
       streak: user?.streak ?? 0,
       dailyGoal: user?.dailyGoal ?? 20,
       answeredToday: answersToday,
@@ -515,13 +516,21 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   app.put<{ Body: { goal: number } }>(
     "/api/me/daily-goal",
     { preHandler: [requireAuth, requireQuizAccess] },
-    async (req) => {
-      const goal = Math.max(1, req.body?.goal ?? 20);
-      await prisma.user.update({
-        where: { id: req.userId! },
-        data: { dailyGoal: goal },
-      });
+    async (req, reply) => {
+      const { goal } = req.body;
+      if (![10, 20, 30, 50].includes(goal)) return reply.code(400).send({ error: "Xato" });
+      await prisma.user.update({ where: { id: req.userId! }, data: { dailyGoal: goal } });
       return { ok: true, dailyGoal: goal };
+    },
+  );
+
+  app.put<{ Body: { on: boolean } }>(
+    "/api/me/reminders",
+    { preHandler: [requireAuth, requireQuizAccess] },
+    async (req, reply) => {
+      const { on } = req.body;
+      await prisma.user.update({ where: { id: req.userId! }, data: { remindersOn: on } });
+      return { ok: true, remindersOn: on };
     },
   );
 
@@ -614,17 +623,18 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   );
 
   // --- Leaderboard ---
-  app.get("/api/leaderboard", { preHandler: [requireAuth, requireAdmin] }, async (req): Promise<LeaderboardEntry[]> => {
+  app.get("/api/leaderboard", { preHandler: [requireAuth, requireQuizAccess] }, async (req): Promise<LeaderboardEntry[]> => {
     const userId = req.userId!;
     const rows = await prisma.$queryRaw<
-      { userId: number; firstName: string; username: string | null; correct: bigint; total: bigint }[]
+      { userId: number; firstName: string; username: string | null; displayName: string | null; correct: bigint; total: bigint }[]
     >`
-      SELECT u.id AS "userId", u."firstName", u.username,
+      SELECT u.id AS "userId", u."firstName", u.username, u."displayName",
              COUNT(*) FILTER (WHERE aa."isCorrect") AS correct,
              COUNT(*) AS total
       FROM "AttemptAnswer" aa
       JOIN "Attempt" a ON a.id = aa."attemptId"
       JOIN "User" u ON u.id = a."userId"
+      WHERE aa."answeredAt" >= NOW() - INTERVAL '7 days'
       GROUP BY u.id
       ORDER BY correct DESC, total ASC
       LIMIT 50
@@ -633,11 +643,22 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       rank: i + 1,
       firstName: r.firstName,
       username: r.username,
+      displayName: r.displayName,
       totalCorrect: Number(r.correct),
       accuracy: Number(r.total) ? Math.round((Number(r.correct) / Number(r.total)) * 100) : 0,
       isMe: r.userId === userId,
     }));
   });
+
+  app.put<{ Body: { name: string } }>(
+    "/api/me/display-name",
+    { preHandler: [requireAuth, requireQuizAccess] },
+    async (req, reply) => {
+      const name = req.body.name.trim().slice(0, 50);
+      await prisma.user.update({ where: { id: req.userId! }, data: { displayName: name || null } });
+      return { ok: true };
+    },
+  );
 }
 
 function shuffle<T>(arr: T[]): T[] {

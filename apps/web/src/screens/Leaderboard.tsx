@@ -35,9 +35,24 @@ export function Leaderboard(props: { onBack: () => void }) {
             <div key={r.rank} className={`lb-row ${r.isMe ? "me" : ""}`}>
               <span className="lb-rank">{medal(r.rank)}</span>
               <span className="lb-name">
-                {r.firstName}
-                {r.username ? ` (@${r.username})` : ""}
+                {r.displayName || r.firstName}
                 {r.isMe ? " — siz" : ""}
+                {r.isMe && (
+                  <button 
+                    onClick={() => {
+                      const newName = prompt("Yangi ismni kiriting:", r.displayName || r.firstName);
+                      if (newName !== null && newName.trim().length > 0) {
+                        api.updateDisplayName(newName).then(() => {
+                          const updated = rows.map(row => row.rank === r.rank ? { ...row, displayName: newName } : row);
+                          setRows(updated);
+                        });
+                      }
+                    }} 
+                    style={{ marginLeft: 8, padding: "2px 6px", fontSize: 10, borderRadius: 4, background: "var(--tg-secondary-bg)", border: "none", cursor: "pointer", color: "var(--tg-text)" }}
+                  >
+                    ✏️
+                  </button>
+                )}
               </span>
               <span className="lb-val">
                 {r.totalCorrect} · {r.accuracy}%

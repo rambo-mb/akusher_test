@@ -6,6 +6,7 @@ import { registerRoutes } from "./routes.js";
 import { seedQuestions } from "./seed.js";
 import { backfillSrs } from "./srs.js";
 import { createBot, setupMenuButton } from "./bot.js";
+import { startScheduler } from "./scheduler.js";
 
 async function main() {
   const app = Fastify({ logger: true });
@@ -45,6 +46,7 @@ async function main() {
     }
   })();
   setupMenuButton(bot).catch((e) => app.log.warn(`Menu button o'rnatilmadi: ${e}`));
+  startScheduler(bot);
 
   await app.listen({ port: env.PORT, host: "0.0.0.0" });
   app.log.info(`API tayyor: http://localhost:${env.PORT}`);

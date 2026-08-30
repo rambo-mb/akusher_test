@@ -53,6 +53,22 @@ export function Stats(props: { onBack: () => void }) {
           <Row label="Aniqlik" value={`${s.accuracy}%`} />
           <Row label="Eng yaxshi natija" value={`${s.bestScore}%`} />
           <Row label="Xatolar (takrorlash uchun)" value={s.mistakesCount} />
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0" }}>
+            <span style={{ color: "var(--tg-hint)" }}>Kunlik eslatmalar</span>
+            <label style={{ display: "flex", alignItems: "center", cursor: "pointer" }}>
+              <input 
+                type="checkbox" 
+                checked={s.remindersOn} 
+                onChange={(e) => {
+                  const on = e.target.checked;
+                  setS({ ...s, remindersOn: on });
+                  api.updateReminders(on).catch(() => {});
+                }} 
+                style={{ marginRight: 8, transform: "scale(1.2)" }}
+              />
+              <span>{s.remindersOn ? "Yoqilgan" : "O'chirilgan"}</span>
+            </label>
+          </div>
         </div>
       )}
 

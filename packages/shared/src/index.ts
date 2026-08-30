@@ -145,6 +145,7 @@ export interface MeStats {
   accuracy: number; // 0..100
   mistakesCount: number;
   bestScore: number;
+  remindersOn: boolean;
   streak: number;
   dailyGoal: number;
   answeredToday: number;
@@ -171,6 +172,7 @@ export interface LeaderboardEntry {
   rank: number;
   firstName: string;
   username: string | null;
+  displayName?: string | null;
   totalCorrect: number;
   accuracy: number;
   isMe: boolean;
