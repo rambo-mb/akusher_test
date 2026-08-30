@@ -95,7 +95,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     const kind = eff === "expired" ? "♻️ Obunani yangilash so'rovi" : "🔔 Yangi ruxsat so'rovi";
     await notifyAdmin(
       bot,
-      `${kind}:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
+      `${kind}:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
       approvalKeyboard(user.id),
     );
     return { status: eff as UserStatus };

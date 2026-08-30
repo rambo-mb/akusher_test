@@ -96,7 +96,7 @@ export function createBot() {
     const uname = user.username ? `@${user.username}` : "(username yo'q)";
     await notifyAdmin(
       bot,
-      `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}`,
+      `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
       approvalKeyboard(user.id),
     );
     await ctx.answerCallbackQuery("So'rovingiz yuborildi ✅");
@@ -149,12 +149,52 @@ export function createBot() {
     // Adminga rasm (chek) va ma'lumotlarni forward qilamiz
     await notifyAdmin(
       bot,
-      `🧾 Yangi to'lov cheki:\n👤 ${user.firstName} ${user.username ? `(@${user.username})` : ""}\n🆔 ${user.telegramId}`,
+      `🧾 Yangi to'lov cheki:\n👤 ${user.firstName} ${user.username ? `(@${user.username})` : ""}\n🆔 ${user.telegramId}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
       approvalKeyboard(user.id)
     );
     await ctx.forwardMessage(env.ADMIN_TELEGRAM_ID);
 
     await ctx.reply("Chek qabul qilindi, admin tasdiqlashini kuting.");
+  });
+
+  // Chat-relay: admin so'rov/xabarga "reply" qilса -> foydalanuvchiga yetkaziladi;
+  // oddiy foydalanuvchi yozsa -> adminга yetkaziladi (ikki tomonlama muloqot).
+  bot.on("message:text", async (ctx) => {
+    const from = ctx.from;
+    if (!from) return;
+    const text = ctx.message.text;
+    if (text.startsWith("/")) return; // komandalar alohida
+
+    if (isAdminTelegramId(from.id)) {
+      // Admin javobi: 🆔 <id> bo'lgan xabarga reply qilingan bo'lishi kerak
+      const replied = ctx.message.reply_to_message;
+      const rtext =
+        (replied && ("text" in replied ? replied.text : undefined)) ??
+        (replied && ("caption" in replied ? replied.caption : undefined)) ??
+        "";
+      const m = rtext.match(/🆔\s*(\d+)/);
+      if (!m) {
+        await ctx.reply("ℹ️ Foydalanuvchiga yozish uchun uning xabariga *reply* qilib yozing.", {
+          parse_mode: "Markdown",
+        });
+        return;
+      }
+      try {
+        await bot.api.sendMessage(Number(m[1]), `💬 Admin:\n${text}`);
+        await ctx.reply("✅ Foydalanuvchiga yuborildi.");
+      } catch {
+        await ctx.reply("❌ Yuborib bo'lmadi (foydalanuvchi botni bloklagan bo'lishi mumkin).");
+      }
+      return;
+    }
+
+    // Oddiy foydalanuvchi -> adminга (admin reply qilib javob bera oladi)
+    const uname = from.username ? `@${from.username}` : "(username yo'q)";
+    await notifyAdmin(
+      bot,
+      `✉️ Xabar:\n👤 ${from.first_name} ${uname}\n🆔 ${from.id}\n\n${text}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
+    );
+    await ctx.reply("✅ Xabaringiz adminга yuborildi. Tez orada javob olasiz.");
   });
 
   bot.catch((err) => console.error("Bot xatosi:", err));
