@@ -68,7 +68,17 @@ export function App() {
     );
   }
 
-  const allowed = user?.status === "approved" || user?.isAdmin;
+  // Ruxsat: admin, tasdiqlangan, YOKI pending (bepul sinov hali ishlatilmagan)
+  const allowed =
+    !!user &&
+    (user.isAdmin || user.status === "approved" || (user.status === "pending" && !user.trialUsed));
+
+  // Bepul sinovдан keyin (tasdiqlanmagan foydalanuvchi) — Gate'ga o'tkazamiz
+  const lockAfterTrial = () => {
+    if (user && !user.isAdmin && user.status !== "approved") {
+      setUser({ ...user, trialUsed: true });
+    }
+  };
 
   return (
     <div className="app">
@@ -82,8 +92,9 @@ export function App() {
 
       {allowed && view.name === "home" && (
         <Home
-          isAdmin={user.isAdmin}
+          isAdmin={user!.isAdmin}
           onStart={(data) => setView({ name: "quiz", data })}
+          onLockedOut={lockAfterTrial}
           onStats={() => setView({ name: "stats" })}
           onLeaderboard={() => setView({ name: "leaderboard" })}
           onAdmin={() => setView({ name: "admin" })}
@@ -100,7 +111,13 @@ export function App() {
         />
       )}
       {allowed && view.name === "result" && (
-        <Result data={view.data} onHome={() => setView({ name: "home" })} />
+        <Result
+          data={view.data}
+          onHome={() => {
+            lockAfterTrial(); // sinov foydalanuvchisini natijadan keyin Gate'ga o'tkazadi
+            setView({ name: "home" });
+          }}
+        />
       )}
       {allowed && view.name === "stats" && <Stats onBack={() => setView({ name: "home" })} />}
       {allowed && view.name === "leaderboard" && <Leaderboard onBack={() => setView({ name: "home" })} />}

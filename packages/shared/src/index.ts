@@ -77,6 +77,7 @@ export interface AuthResponse {
     isAdmin: boolean;
     telegramId: string;
     accessUntil: string | null; // ISO sana yoki null (cheksiz)
+    trialUsed: boolean; // bepul sinov ishlatilganmi
   };
   config?: {
     adminUsername?: string;

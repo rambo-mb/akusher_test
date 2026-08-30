@@ -50,46 +50,51 @@ export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse[
   }
 
   const expired = status === "expired";
+  const trialEnded = status === "pending" && props.user.trialUsed;
+
+  const emoji = expired ? "⏰" : trialEnded ? "🎁" : "🔒";
+  const title = expired ? "Obunangiz tugadi" : trialEnded ? "Bepul sinov tugadi" : "Ruxsat kerak";
+  const sub = expired
+    ? "Davom etish uchun obunani yangilang — admin tasdiqlaydi."
+    : trialEnded
+      ? "Bepul testдан foydalandingiz. Davom etish uchun to'lov qiling — admin bilan bog'laning."
+      : "Bu bot yopiq. Foydalanish uchun admindan ruxsat oling.";
 
   return (
     <div className="gate">
-      <div className="gate-emoji">{expired ? "⏰" : "🔒"}</div>
-      <h1>{expired ? "Obunangiz tugadi" : "Ruxsat kerak"}</h1>
-      <p className="subtitle">
-        {expired
-          ? "Davom etish uchun obunani yangilang — admin tasdiqlaydi."
-          : "Bu bot yopiq. Foydalanish uchun admindan ruxsat oling."}
-      </p>
+      <div className="gate-emoji">{emoji}</div>
+      <h1>{title}</h1>
+      <p className="subtitle">{sub}</p>
+
+      {props.config?.priceInfo && (
+        <div className="card" style={{ marginBottom: 16, whiteSpace: "pre-wrap", textAlign: "center" }}>
+          {props.config.priceInfo}
+        </div>
+      )}
 
       {!requested ? (
-        <>
-          {props.config?.priceInfo && (
-            <div className="card" style={{ marginBottom: 16, whiteSpace: "pre-wrap", textAlign: "center" }}>
-              {props.config.priceInfo}
-            </div>
-          )}
-          <button className="primary" onClick={request} disabled={busy}>
-            {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
-          </button>
-          {props.config?.adminUsername && (
-            <button
-              className="ghost"
-              onClick={() => openTelegramLink(`https://t.me/${props.config!.adminUsername}`)}
-              style={{ marginTop: 8 }}
-            >
-              💬 Admin bilan bog'lanish (to'lov)
-            </button>
-          )}
-        </>
+        <button className="primary" onClick={request} disabled={busy}>
+          {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
+        </button>
       ) : (
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
           <div style={{ fontWeight: 600 }}>So'rovingiz yuborildi</div>
-          <div className="review-note">Admin tasdiqlagach, botdan foydalanasiz.</div>
+          <div className="review-note">Admin tasdiqlagach davom etasiz.</div>
           <button className="ghost" onClick={recheck} disabled={busy} style={{ marginTop: 10 }}>
             {busy ? "Tekshirilmoqda…" : "🔄 Holatni tekshirish"}
           </button>
         </div>
+      )}
+
+      {props.config?.adminUsername && (
+        <button
+          className="primary"
+          onClick={() => openTelegramLink(`https://t.me/${props.config!.adminUsername}`)}
+          style={{ marginTop: 8, background: "var(--green)" }}
+        >
+          💬 Admin bilan bog'lanish (to'lov)
+        </button>
       )}
 
       <p className="gate-id">Sizning ID: {props.user.telegramId}</p>

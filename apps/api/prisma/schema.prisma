@@ -69,6 +69,7 @@ model User {
   streak       Int       @default(0)
   dailyGoal    Int       @default(20)
   lastActiveOn String?
+  trialUsed    Boolean   @default(false) // bepul sinov (1 ta test) ishlatilganmi
   attempts      Attempt[]
   bookmarks     Bookmark[]
   userQuestions UserQuestion[]

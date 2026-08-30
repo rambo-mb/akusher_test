@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import type { MeStats, QuizMode, StartQuizResponse } from "@aku/shared";
 import { QUESTION_COUNT_OPTIONS, QUIZ_MODES } from "@aku/shared";
-import { api } from "../api.js";
+import { api, ApiError } from "../api.js";
 import { tap } from "../telegram.js";
 
 export function Home(props: {
   isAdmin: boolean;
   onStart: (data: StartQuizResponse) => void;
+  onLockedOut: () => void;
   onStats: () => void;
   onLeaderboard: () => void;
   onAdmin: () => void;
@@ -38,6 +39,11 @@ export function Home(props: {
       const data = await api.start({ mode, count });
       props.onStart(data);
     } catch (e) {
+      // Bepul sinov tugagan (403) -> to'lov ekraniga o'tkazamiz
+      if (e instanceof ApiError && e.status === 403) {
+        props.onLockedOut();
+        return;
+      }
       setErr((e as Error).message);
     } finally {
       setLoading(false);

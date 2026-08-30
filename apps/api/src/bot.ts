@@ -1,7 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
 import { prisma } from "./db.js";
-import { isAdminTelegramId } from "./auth.js";
+import { effectiveStatus, isAdminTelegramId } from "./auth.js";
 import { approvalKeyboard, approveUser, blockUser, notifyAdmin } from "./access.js";
 
 export function createBot() {
@@ -35,7 +35,8 @@ export function createBot() {
       },
     });
 
-    if (admin || user.status === "approved") {
+    const eff = effectiveStatus(user);
+    if (admin || eff === "approved") {
       const kb = new InlineKeyboard().webApp("🩺 Testni boshlash", env.WEB_APP_URL);
       await ctx.reply(
         `Assalomu alaykum, ${from.first_name}! 👩‍⚕️\n\n` +
@@ -43,15 +44,20 @@ export function createBot() {
           "Quyidagi tugma orqali boshlang:",
         { reply_markup: kb },
       );
-    } else if (user.status === "blocked") {
+    } else if (eff === "blocked") {
       await ctx.reply("⛔ Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.");
     } else {
-      let msg = "🔒 Bu bot yopiq (maxsus ruxsat bilan).\n\n" +
-        "Foydalanish uchun admindan ruxsat so'rang — quyidagi tugmani bosing:";
-      const kb = new InlineKeyboard().text("📩 Ruxsat so'rash", `req:${user.id}`);
-      if (env.PRICE_INFO) {
-        msg += `\n\n${env.PRICE_INFO}`;
+      // pending yoki expired
+      const expired = eff === "expired";
+      let msg = expired
+        ? "⏰ Obunangiz tugadi.\n\nDavom etish uchun obunani yangilang — admin bilan bog'laning."
+        : "🔒 Xush kelibsiz!\n\n🎁 Bir marta testni BEPUL sinab ko'rishingiz mumkin. Keyin davom etish uchun admindan ruxsat oling (to'lov).";
+      const kb = new InlineKeyboard();
+      if (!expired && !user.trialUsed) {
+        kb.webApp("🎁 Bepul test ishlash", env.WEB_APP_URL).row();
       }
+      kb.text(expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash", `req:${user.id}`);
+      if (env.PRICE_INFO) msg += `\n\n${env.PRICE_INFO}`;
       if (env.ADMIN_USERNAME) {
         kb.row().url("💬 Admin bilan bog'lanish", `https://t.me/${env.ADMIN_USERNAME}`);
       }

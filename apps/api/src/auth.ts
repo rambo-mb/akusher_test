@@ -100,6 +100,26 @@ export async function requireApproved(req: FastifyRequest, reply: FastifyReply) 
   }
 }
 
+/**
+ * Quiz/stats uchun ruxsat: admin, amaldagi obunali, YOKI pending (bepul sinov).
+ * Faqat "blocked" va "expired" bloklanadi. Trial limiti /quiz/start'da tekshiriladi.
+ */
+export async function requireQuizAccess(req: FastifyRequest, reply: FastifyReply) {
+  if (!req.userId) return reply.code(401).send({ error: "Avtorizatsiya talab qilinadi" });
+  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  if (!user) return reply.code(401).send({ error: "Foydalanuvchi topilmadi" });
+  const admin = isAdminTelegramId(user.telegramId);
+  req.isAdmin = admin;
+  if (admin) return;
+  if (user.status === "blocked") {
+    return reply.code(403).send({ error: "Bloklangan", status: "blocked" });
+  }
+  if (user.status === "approved" && isExpired(user)) {
+    return reply.code(403).send({ error: "Obuna muddati tugagan", status: "expired" });
+  }
+  // approved (amaldagi) yoki pending (sinov) -> ruxsat
+}
+
 /** Faqat admin. requireAuth'dan keyin ishlaydi. */
 export async function requireAdmin(req: FastifyRequest, reply: FastifyReply) {
   if (!req.userId) return reply.code(401).send({ error: "Avtorizatsiya talab qilinadi" });

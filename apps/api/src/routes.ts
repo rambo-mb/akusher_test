@@ -22,9 +22,10 @@ import { env } from "./env.js";
 import {
   effectiveStatus,
   isAdminTelegramId,
+  isExpired,
   requireAdmin,
-  requireApproved,
   requireAuth,
+  requireQuizAccess,
   signToken,
   verifyInitData,
 } from "./auth.js";
@@ -68,6 +69,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         isAdmin: admin,
         telegramId: String(user.telegramId),
         accessUntil: user.accessUntil ? user.accessUntil.toISOString() : null,
+        trialUsed: user.trialUsed,
       },
       config: {
         adminUsername: env.ADMIN_USERNAME,
@@ -269,11 +271,25 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Quiz: start ---
   app.post<{ Body: StartQuizRequest }>(
     "/api/quiz/start",
-    { preHandler: [requireAuth, requireApproved] },
+    { preHandler: [requireAuth, requireQuizAccess] },
     async (req, reply) => {
       const userId = req.userId!;
       const mode = (req.body?.mode ?? "random") as QuizMode;
       let count = Math.min(Math.max(Number(req.body?.count ?? 20), 1), MAX_COUNT);
+
+      // Bepul sinov: tasdiqlanmagan foydalanuvchi faqat 1 marta test ishlay oladi
+      const me = await prisma.user.findUnique({ where: { id: userId } });
+      const isApproved =
+        req.isAdmin || (me != null && me.status === "approved" && !isExpired(me));
+      if (!isApproved) {
+        if (me?.trialUsed) {
+          return reply.code(403).send({
+            error: "Bepul sinov tugadi. Davom etish uchun to'lov qiling — admin bilan bog'laning.",
+            status: "trial_used",
+          });
+        }
+        await prisma.user.update({ where: { id: userId }, data: { trialUsed: true } });
+      }
 
       let questionIds: number[];
 
@@ -336,7 +352,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Quiz: answer ---
   app.post<{ Params: { attemptId: string }; Body: AnswerRequest }>(
     "/api/quiz/:attemptId/answer",
-    { preHandler: [requireAuth, requireApproved] },
+    { preHandler: [requireAuth, requireQuizAccess] },
     async (req, reply) => {
       const userId = req.userId!;
       const attemptId = Number(req.params.attemptId);
@@ -374,7 +390,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Quiz: finish ---
   app.post<{ Params: { attemptId: string } }>(
     "/api/quiz/:attemptId/finish",
-    { preHandler: [requireAuth, requireApproved] },
+    { preHandler: [requireAuth, requireQuizAccess] },
     async (req, reply) => {
       const userId = req.userId!;
       const attemptId = Number(req.params.attemptId);
@@ -433,7 +449,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   );
 
   // --- Stats: me ---
-  app.get("/api/stats/me", { preHandler: [requireAuth, requireApproved] }, async (req): Promise<MeStats> => {
+  app.get("/api/stats/me", { preHandler: [requireAuth, requireQuizAccess] }, async (req): Promise<MeStats> => {
     const userId = req.userId!;
     const answers = await prisma.attemptAnswer.findMany({
       where: { attempt: { userId } },
@@ -474,7 +490,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Daily Goal ---
   app.put<{ Body: { goal: number } }>(
     "/api/me/daily-goal",
-    { preHandler: [requireAuth, requireApproved] },
+    { preHandler: [requireAuth, requireQuizAccess] },
     async (req) => {
       const goal = Math.max(1, req.body?.goal ?? 20);
       await prisma.user.update({
@@ -486,7 +502,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   );
 
   // --- Gamification: History & Stats ---
-  app.get("/api/attempts", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+  app.get("/api/attempts", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
     const attempts = await prisma.attempt.findMany({
       where: { userId: req.userId!, finishedAt: { not: null } },
       orderBy: { finishedAt: "desc" },
@@ -499,7 +515,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     }));
   });
 
-  app.get<{ Params: { id: string } }>("/api/attempts/:id", { preHandler: [requireAuth, requireApproved] }, async (req, reply) => {
+  app.get<{ Params: { id: string } }>("/api/attempts/:id", { preHandler: [requireAuth, requireQuizAccess] }, async (req, reply) => {
     const attempt = await prisma.attempt.findFirst({
       where: { id: Number(req.params.id), userId: req.userId!, finishedAt: { not: null } },
       include: { answers: { include: { question: true } } },
@@ -529,7 +545,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     return res;
   });
 
-  app.get("/api/stats/weak", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+  app.get("/api/stats/weak", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
     const weak = await prisma.userQuestion.findMany({
       where: { userId: req.userId!, wrongCount: { gt: 0 } },
       orderBy: { wrongCount: "desc" },
@@ -545,11 +561,11 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   });
 
   // --- Home badge'lari: takrorlash va belgilangan savol soni ---
-  app.get("/api/mistakes/count", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+  app.get("/api/mistakes/count", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
     const count = await getDueReviewCount(req.userId!);
     return { count };
   });
-  app.get("/api/bookmarks/count", { preHandler: [requireAuth, requireApproved] }, async (req) => {
+  app.get("/api/bookmarks/count", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
     const count = await prisma.bookmark.count({ where: { userId: req.userId! } });
     return { count };
   });
@@ -557,7 +573,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Bookmark toggle ---
   app.post<{ Params: { questionId: string } }>(
     "/api/bookmarks/:questionId/toggle",
-    { preHandler: [requireAuth, requireApproved] },
+    { preHandler: [requireAuth, requireQuizAccess] },
     async (req) => {
       const userId = req.userId!;
       const questionId = Number(req.params.questionId);
