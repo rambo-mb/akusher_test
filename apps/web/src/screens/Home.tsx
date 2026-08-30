@@ -16,6 +16,7 @@ export function Home(props: {
   onAchievements: () => void;
   onReferral: () => void;
   onCertificate: () => void;
+  onGuide: () => void;
 }) {
   const [mode, setMode] = useState<QuizMode>("random");
   const [count, setCount] = useState(20);
@@ -192,6 +193,7 @@ export function Home(props: {
       <button className="ghost" onClick={props.onCertificate}>🎖 Sertifikat</button>
       <button className="ghost" onClick={props.onReferral}>🎁 Do'st taklif qil</button>
       <button className="ghost" onClick={props.onLeaderboard}>🏆 Reyting</button>
+      <button className="ghost" onClick={props.onGuide}>❔ Qo'llanma</button>
       
       {props.isAdmin && (
         <>

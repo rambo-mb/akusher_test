@@ -30,7 +30,8 @@ type View =
   | { name: "certificate" }
   | { name: "achievements" }
   | { name: "history" }
-  | { name: "referral" };
+  | { name: "referral" }
+  | { name: "guide" };
 
 export function App() {
   const [ready, setReady] = useState(false);
@@ -115,6 +116,7 @@ export function App() {
           onHistory={() => setView({ name: "history" })}
           onReferral={() => setView({ name: "referral" })}
           onCertificate={() => setView({ name: "certificate" })}
+          onGuide={() => setView({ name: "guide" })}
         />
       )}
       {allowed && view.name === "quiz" && (
@@ -156,6 +158,9 @@ export function App() {
       )}
       {allowed && view.name === "referral" && (
         <Referral onBack={() => setView({ name: "home" })} />
+      )}
+      {allowed && view.name === "guide" && (
+        <Onboarding guide onComplete={() => setView({ name: "home" })} />
       )}
     </div>
   );
