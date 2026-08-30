@@ -97,6 +97,9 @@ export const api = {
   adminUpdateQuestion(id: number, patch: Partial<AdminQuestion>) {
     return req<{ ok: boolean; needsReview: boolean }>(`/api/admin/questions/${id}`, "PUT", patch);
   },
+  adminReimport() {
+    return req<{ total: number; created: number; updated: number }>("/api/admin/reimport", "POST");
+  },
   leaderboard() {
     return req<LeaderboardEntry[]>("/api/leaderboard");
   },

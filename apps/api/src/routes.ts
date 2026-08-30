@@ -31,6 +31,7 @@ import {
 } from "./auth.js";
 import { approvalKeyboard, approveUser, blockUser, notifyAdmin, notifyUser } from "./access.js";
 import { getDueReviewCount, getDueReviewIds, recordAnswer } from "./srs.js";
+import { reimportQuestions } from "./seed.js";
 
 const MAX_COUNT = 100;
 
@@ -267,6 +268,12 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       return { ok: true, needsReview: updated.needsReview };
     },
   );
+
+  // --- Admin: questions.json'дан to'liq qayta import (docx tuzatilгандан keyin) ---
+  app.post("/api/admin/reimport", { preHandler: [requireAuth, requireAdmin] }, async () => {
+    const res = await reimportQuestions(prisma);
+    return res; // { total, created, updated }
+  });
 
   // --- Quiz: start ---
   app.post<{ Body: StartQuizRequest }>(

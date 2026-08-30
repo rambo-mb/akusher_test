@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { AdminQuestion } from "@aku/shared";
 import { api } from "../api.js";
 import { Skeleton } from "../components/Skeleton.js";
-import { tap, useTelegramBackButton, useTelegramMainButton, inTg } from "../telegram.js";
+import { tap, alertMsg, useTelegramBackButton, useTelegramMainButton, inTg } from "../telegram.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 const TAKE = 20;
@@ -18,6 +18,21 @@ export function AdminQuestions(props: { onBack: () => void }) {
   const [editId, setEditId] = useState(0);
   const [draft, setDraft] = useState<AdminQuestion | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reimporting, setReimporting] = useState(false);
+
+  async function reimport() {
+    if (!window.confirm("questions.json'дан barcha savollarni qayta import qilasizmi? Matn/variantlar yangilanadi (izohlar saqlanadi).")) return;
+    setReimporting(true);
+    try {
+      const r = await api.adminReimport();
+      alertMsg(`✅ Import: ${r.total} savol (${r.created} yangi, ${r.updated} yangilandi)`);
+      load(true);
+    } catch (e) {
+      alertMsg("Xatolik: " + (e as Error).message);
+    } finally {
+      setReimporting(false);
+    }
+  }
 
   useTelegramBackButton(props.onBack);
 
@@ -96,6 +111,10 @@ export function AdminQuestions(props: { onBack: () => void }) {
       </div>
       
       <p className="subtitle">Tuzatilmagan: {needsReview} · Ko'rsatilyapti: {total}</p>
+
+      <button className="ghost" onClick={reimport} disabled={reimporting} style={{ marginBottom: 12 }}>
+        {reimporting ? "Import qilinmoqda…" : "♻️ questions.json'дан qayta import"}
+      </button>
 
       <div className="tabs">
         <div className={`tab ${filter === "needsReview" ? "active" : ""}`} onClick={() => setFilter("needsReview")}>
