@@ -6,11 +6,19 @@
   --tg-button: #2481cc;
   --tg-button-text: #ffffff;
   --tg-secondary-bg: #f1f1f4;
-  --radius: 14px;
+  --radius: 16px;
   --green: #2ecc71;
   --red: #e74c3c;
   --brand: var(--tg-button, #2481cc);
   --brand-light: rgba(36, 129, 204, 0.1);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --hair: 1px solid color-mix(in srgb, var(--tg-hint) 16%, transparent);
+}
+
+body[data-theme="dark"] {
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 8px 26px rgba(0, 0, 0, 0.5);
 }
 
 body[data-theme="dark"] {
@@ -39,7 +47,9 @@ body {
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
   margin: 8px 0 4px;
 }
 .subtitle {
@@ -53,6 +63,8 @@ h1 {
   border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow);
+  border: var(--hair);
 }
 
 .statstrip {
@@ -64,12 +76,15 @@ h1 {
 .statstrip > div {
   background: var(--tg-secondary-bg);
   border-radius: var(--radius);
-  padding: 12px 6px;
+  padding: 14px 6px;
   text-align: center;
+  box-shadow: var(--shadow);
+  border: var(--hair);
 }
 .statstrip .sv {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 800;
+  letter-spacing: -0.02em;
 }
 .statstrip .sl {
   font-size: 12px;
@@ -96,10 +111,15 @@ h1 {
   cursor: pointer;
   text-align: left;
   color: var(--tg-text);
-  transition: border-color 0.15s;
+  box-shadow: var(--shadow);
+  transition: border-color 0.15s, transform 0.1s, background 0.15s;
+}
+.mode:active:not(.disabled) {
+  transform: scale(0.98);
 }
 .mode.active {
   border-color: var(--tg-button);
+  background: color-mix(in srgb, var(--tg-button) 12%, var(--tg-secondary-bg));
 }
 .mode .mtitle {
   font-weight: 600;
@@ -140,6 +160,7 @@ h1 {
 }
 .chip.active {
   border-color: var(--tg-button);
+  background: color-mix(in srgb, var(--tg-button) 14%, var(--tg-secondary-bg));
 }
 
 button.primary {
@@ -150,22 +171,33 @@ button.primary {
   background: var(--tg-button);
   color: var(--tg-button-text);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--tg-button) 35%, transparent);
+  transition: transform 0.1s, opacity 0.15s;
+}
+button.primary:active:not(:disabled) {
+  transform: scale(0.98);
 }
 button.primary:disabled {
   opacity: 0.5;
+  box-shadow: none;
 }
 button.ghost {
   width: 100%;
   padding: 13px;
-  border: none;
+  border: var(--hair);
   border-radius: var(--radius);
   background: var(--tg-secondary-bg);
   color: var(--tg-text);
   font-size: 15px;
+  font-weight: 600;
   cursor: pointer;
   margin-top: 8px;
+  transition: transform 0.1s;
+}
+button.ghost:active {
+  transform: scale(0.98);
 }
 
 .progress {
@@ -233,7 +265,7 @@ button.ghost {
   background: var(--tg-secondary-bg);
   border: 2px solid transparent;
   border-radius: var(--radius);
-  padding: 13px 14px;
+  padding: 14px 15px;
   margin-bottom: 10px;
   cursor: pointer;
   font-size: 15px;
@@ -241,6 +273,8 @@ button.ghost {
   color: var(--tg-text);
   text-align: left;
   width: 100%;
+  box-shadow: var(--shadow);
+  transition: border-color 0.12s, background 0.12s, transform 0.08s;
 }
 .option .letter {
   font-weight: 700;
@@ -497,6 +531,83 @@ button.ghost {
   justify-content: center;
   font-weight: 700;
   font-size: 13px;
+}
+
+/* Sertifikat */
+.cert-wrap {
+  padding: 12px 4px 8px;
+}
+.cert {
+  position: relative;
+  background: linear-gradient(140deg, var(--tg-button), var(--green));
+  color: #fff;
+  border-radius: 20px;
+  padding: 30px 24px 22px;
+  text-align: center;
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.cert-ring {
+  position: absolute;
+  inset: 10px;
+  border: 1.5px solid rgba(255, 255, 255, 0.4);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.cert-emblem {
+  font-size: 52px;
+  line-height: 1;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.25));
+}
+.cert-kicker {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 4px;
+  opacity: 0.9;
+}
+.cert-sub {
+  font-size: 14px;
+  opacity: 0.85;
+  margin: 6px 0;
+}
+.cert-name {
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  padding: 4px 0;
+}
+.cert-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin: 18px 0 16px;
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 14px;
+  padding: 14px;
+}
+.cert-stat-v {
+  font-size: 26px;
+  font-weight: 800;
+}
+.cert-stat-l {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+.cert-divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 255, 255, 0.35);
+}
+.cert-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  opacity: 0.8;
+  margin-top: 4px;
 }
 
 /* Ulashish tugmasi (natija + referral) */
