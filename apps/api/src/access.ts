@@ -12,7 +12,7 @@ export function approvalKeyboard(userId: number) {
     .text("1 yil", `ap:365:${userId}`)
     .text("♾ Cheksiz", `ap:0:${userId}`)
     .row()
-    .text("⛔ Rad etish", `reject:${userId}`);
+    .text("✖️ Rad etish", `reject:${userId}`);
 }
 
 /** Foydalanuvchiga xabar yuborish (xatoni yutamiz — bot bloklangan bo'lishi mumkin) */
@@ -64,6 +64,21 @@ export async function approveUser(bot: Bot, userId: number, days?: number) {
     user.telegramId,
     `✅ Sizga ruxsat berildi!\n${until}\n\nTestlarni boshlash uchun /start bosing.`,
   );
+  return user;
+}
+
+/**
+ * So'rovni YUMSHOQ rad etish — foydalanuvchi bloklanmaydi, pending qoladi,
+ * to'lovдан keyin qayta so'rashi mumkin. (Haqiqiy bloklash faqat admin panelда.)
+ */
+export async function declineUser(bot: Bot, userId: number) {
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return null;
+  let msg =
+    "❌ So'rovingiz hozircha tasdiqlanmadi.\n\n" +
+    "To'lovni amalga oshirib, admin bilan bog'laning va qayta urinib ko'ring.";
+  if (env.ADMIN_USERNAME) msg += `\n👉 https://t.me/${env.ADMIN_USERNAME}`;
+  await notifyUser(bot, user.telegramId, msg);
   return user;
 }
 

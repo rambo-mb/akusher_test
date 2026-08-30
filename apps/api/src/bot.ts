@@ -2,7 +2,7 @@ import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
 import { prisma } from "./db.js";
 import { effectiveStatus, isAdminTelegramId } from "./auth.js";
-import { approvalKeyboard, approveUser, blockUser, notifyAdmin } from "./access.js";
+import { approvalKeyboard, approveUser, declineUser, notifyAdmin } from "./access.js";
 
 export function createBot() {
   const bot = new Bot(env.BOT_TOKEN);
@@ -116,15 +116,17 @@ export function createBot() {
     await ctx.editMessageText(`✅ Ruxsat berildi: ${user.firstName} (${info})`);
   });
 
-  // Admin: rad etish / bloklash
+  // Admin: yumshoq rad etish (bloklamaydi — foydalanuvchi qayta so'ray oladi)
   bot.callbackQuery(/^reject:(\d+)$/, async (ctx) => {
     if (!ctx.from || !isAdminTelegramId(ctx.from.id)) {
       return ctx.answerCallbackQuery("Faqat admin uchun");
     }
     const userId = Number(ctx.match[1]);
-    const user = await blockUser(bot, userId);
+    const user = await declineUser(bot, userId);
     await ctx.answerCallbackQuery("Rad etildi");
-    await ctx.editMessageText(`⛔ Rad etildi: ${user.firstName} (ID ${user.telegramId})`);
+    await ctx.editMessageText(
+      `❌ Rad etildi: ${user?.firstName ?? userId}. (Foydalanuvchi to'lovдан keyin qayta so'ray oladi)`,
+    );
   });
 
   bot.catch((err) => console.error("Bot xatosi:", err));
