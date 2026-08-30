@@ -66,12 +66,18 @@ export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse[
       <h1>{title}</h1>
       <p className="subtitle">{sub}</p>
 
-      {props.config?.priceInfo && (
-        <div className="card" style={{ marginBottom: 16, whiteSpace: "pre-wrap", textAlign: "center" }}>
-          {props.config.priceInfo}
+      {props.config?.cardNumber && (
+        <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 16 }}>Cheksiz kirish uchun to'lov qiling</div>
+          <div style={{ marginBottom: 4 }}>💳 <b>Karta:</b> <code style={{ userSelect: "all", background: "var(--tg-secondary-bg)", padding: "2px 6px", borderRadius: 4 }}>{props.config.cardNumber}</code></div>
+          {props.config.priceInfo && (
+            <div style={{ marginBottom: 8 }}>💰 <b>Summa:</b> {props.config.priceInfo}</div>
+          )}
+          <div className="review-note" style={{ marginTop: 8, color: "var(--tg-hint)" }}>
+            To'lov qilib, chekni rasmga tushirib shu botga yuboring.
+          </div>
         </div>
       )}
-
       {!requested ? (
         <button className="primary" onClick={request} disabled={busy}>
           {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}

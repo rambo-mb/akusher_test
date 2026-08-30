@@ -76,6 +76,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         adminUsername: env.ADMIN_USERNAME,
         priceInfo: env.PRICE_INFO,
         botUsername: env.BOT_USERNAME,
+        cardNumber: env.CARD_NUMBER,
       },
     };
     return res;

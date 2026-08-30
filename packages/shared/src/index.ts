@@ -86,6 +86,7 @@ export interface AuthResponse {
     adminUsername?: string;
     priceInfo?: string;
     botUsername?: string;
+    cardNumber?: string;
   };
 }
 

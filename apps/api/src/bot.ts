@@ -137,6 +137,26 @@ export function createBot() {
     );
   });
 
+  bot.on("message:photo", async (ctx) => {
+    const from = ctx.from;
+    if (!from) return;
+    const user = await prisma.user.findUnique({ where: { telegramId: BigInt(from.id) } });
+    if (!user) return;
+    
+    // Admin o'zi yuborsa e'tibor bermaymiz
+    if (isAdminTelegramId(from.id)) return;
+
+    // Adminga rasm (chek) va ma'lumotlarni forward qilamiz
+    await notifyAdmin(
+      bot,
+      `🧾 Yangi to'lov cheki:\n👤 ${user.firstName} ${user.username ? `(@${user.username})` : ""}\n🆔 ${user.telegramId}`,
+      approvalKeyboard(user.id)
+    );
+    await ctx.forwardMessage(env.ADMIN_TELEGRAM_ID);
+
+    await ctx.reply("Chek qabul qilindi, admin tasdiqlashini kuting.");
+  });
+
   bot.catch((err) => console.error("Bot xatosi:", err));
   return bot;
 }

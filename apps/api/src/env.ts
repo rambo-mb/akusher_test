@@ -19,4 +19,5 @@ export const env = {
   ADMIN_USERNAME: process.env.ADMIN_USERNAME ?? "",
   PRICE_INFO: process.env.PRICE_INFO ?? "",
   BOT_USERNAME: process.env.BOT_USERNAME ?? "",
+  CARD_NUMBER: process.env.CARD_NUMBER ?? "",
 };
