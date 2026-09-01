@@ -19,6 +19,7 @@ import type {
 import { EXAM_SECONDS_PER_QUESTION } from "@aku/shared";
 import type { Lang } from "@aku/shared";
 import { prisma } from "./db.js";
+import { Prisma } from "../generated/prisma/index.js";
 import { env } from "./env.js";
 import {
   effectiveStatus,
@@ -365,7 +366,14 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         }
       } else if (mode === "bookmarks") {
         const marks = await prisma.bookmark.findMany({
-          where: { userId, question: { needsReview: false, correctIndex: { gte: 0 } } },
+          where: {
+            userId,
+            question: {
+              needsReview: false,
+              correctIndex: { gte: 0 },
+              ...(lang === "ru" ? { stemRu: { not: null } } : {}),
+            },
+          },
           select: { questionId: true },
         });
         questionIds = shuffle(marks.map((m) => m.questionId)).slice(0, count);
@@ -376,22 +384,25 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         // Tasodifiy: faqat toza savollar (tekshirilgan, to'g'ri javobi bor, 4 variant)
         const cat = req.body?.category;
         let rows: { id: number }[];
-        
+        const ruFilter = lang === "ru" ? Prisma.sql`AND "stemRu" IS NOT NULL AND "stemRu" != ''` : Prisma.empty;
+
         if (cat) {
           rows = await prisma.$queryRaw<{ id: number }[]>`
             SELECT id FROM "Question"
-            WHERE "needsReview" = false 
-              AND "correctIndex" >= 0 
+            WHERE "needsReview" = false
+              AND "correctIndex" >= 0
               AND array_length(options, 1) >= 2
               AND category = ${cat}
+              ${ruFilter}
             ORDER BY random() LIMIT ${count}
           `;
         } else {
           rows = await prisma.$queryRaw<{ id: number }[]>`
             SELECT id FROM "Question"
-            WHERE "needsReview" = false 
-              AND "correctIndex" >= 0 
+            WHERE "needsReview" = false
+              AND "correctIndex" >= 0
               AND array_length(options, 1) >= 2
+              ${ruFilter}
             ORDER BY random() LIMIT ${count}
           `;
         }
