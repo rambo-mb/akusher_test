@@ -27,6 +27,7 @@ export function Admin(props: { onBack: () => void }) {
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
   const [bcOpen, setBcOpen] = useState(false);
   const [bcText, setBcText] = useState("");
+  const [bcTextRu, setBcTextRu] = useState("");
   const [bcMsg, setBcMsg] = useState<string | null>(null);
 
   useTelegramBackButton(props.onBack);
@@ -106,9 +107,10 @@ export function Admin(props: { onBack: () => void }) {
     setBusyId(-1);
     setBcMsg(null);
     try {
-      const r = await api.adminBroadcast(t);
+      const r = await api.adminBroadcast(t, bcTextRu.trim() || undefined);
       setBcMsg(`✅ ${r.sent}/${r.total} ga yuborildi`);
       setBcText("");
+      setBcTextRu("");
     } catch (e) {
       setBcMsg((e as Error).message);
     } finally {
@@ -146,12 +148,21 @@ export function Admin(props: { onBack: () => void }) {
       <button className="ghost" onClick={() => setBcOpen((o) => !o)}>📢 Xabar yuborish</button>
       {bcOpen && (
         <div className="card">
+          <p style={{ margin: "0 0 6px", fontSize: 12, color: "var(--tg-hint)" }}>🇺🇿 O'zbekcha (majburiy)</p>
           <textarea
             className="ta"
             rows={3}
             value={bcText}
             onChange={(e) => setBcText(e.target.value)}
-            placeholder="Barcha faol foydalanuvchilarga xabar…"
+            placeholder="O'zbek tilidagi xabar…"
+          />
+          <p style={{ margin: "8px 0 6px", fontSize: 12, color: "var(--tg-hint)" }}>🇷🇺 Ruscha (ixtiyoriy — faqat RU foydalanuvchilarga)</p>
+          <textarea
+            className="ta"
+            rows={3}
+            value={bcTextRu}
+            onChange={(e) => setBcTextRu(e.target.value)}
+            placeholder="Сообщение на русском…"
           />
           <button
             className="primary"

@@ -223,21 +223,23 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   );
 
   // --- Admin: broadcast (barcha faol foydalanuvchilarga) ---
-  app.post<{ Body: { text: string } }>(
+  app.post<{ Body: { textUz: string; textRu?: string } }>(
     "/api/admin/broadcast",
     { preHandler: [requireAuth, requireAdmin] },
     async (req, reply) => {
-      const text = (req.body?.text ?? "").trim();
-      if (!text) return reply.code(400).send({ error: "Matn bo'sh" });
+      const textUz = (req.body?.textUz ?? "").trim();
+      const textRu = (req.body?.textRu ?? "").trim();
+      if (!textUz) return reply.code(400).send({ error: "O'zbekcha matn bo'sh" });
       const users = await prisma.user.findMany({
         where: { status: "approved" },
-        select: { telegramId: true },
+        select: { telegramId: true, language: true },
       });
       let sent = 0;
       for (const u of users) {
-        await notifyUser(bot, u.telegramId, `📢 ${text}`);
+        const msg = textRu && u.language === "ru" ? textRu : textUz;
+        await notifyUser(bot, u.telegramId, `📢 ${msg}`);
         sent++;
-        await new Promise((r) => setTimeout(r, 40)); // yumshoq rate-limit
+        await new Promise((r) => setTimeout(r, 40));
       }
       return { sent, total: users.length };
     },

@@ -138,7 +138,7 @@ export const api = {
   adminBlock(id: number) {
     return req<{ id: number; status: UserStatus }>(`/api/admin/users/${id}/block`, "POST");
   },
-  adminBroadcast(text: string) {
-    return req<{ sent: number; total: number }>("/api/admin/broadcast", "POST", { text });
+  adminBroadcast(textUz: string, textRu?: string) {
+    return req<{ sent: number; total: number }>("/api/admin/broadcast", "POST", { textUz, textRu });
   },
 };
