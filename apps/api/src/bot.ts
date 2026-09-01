@@ -1,8 +1,9 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
 import { prisma } from "./db.js";
-import { effectiveStatus, isAdminTelegramId } from "./auth.js";
+import { effectiveStatus, isAdminTelegramId, normalizeLang } from "./auth.js";
 import { approvalKeyboard, approveUser, declineUser, notifyAdmin } from "./access.js";
+import { bt } from "./i18n.js";
 
 export function createBot() {
   const bot = new Bot(env.BOT_TOKEN);
@@ -40,73 +41,60 @@ export function createBot() {
         username: from.username ?? null,
         status: admin ? "approved" : "pending",
         referredById: refId,
+        language: normalizeLang(from.language_code),
       },
     });
+    const lang = user.language;
 
     const eff = effectiveStatus(user);
     if (admin || eff === "approved") {
-      const kb = new InlineKeyboard().webApp("🩺 Testni boshlash", env.WEB_APP_URL);
-      await ctx.reply(
-        `Assalomu alaykum, ${from.first_name}! 👩‍⚕️\n\n` +
-          "Akusherlik va ginekologiya imtihoniga tayyorlanish uchun testlar tayyor.\n" +
-          "Quyidagi tugma orqali boshlang:",
-        { reply_markup: kb },
-      );
+      const kb = new InlineKeyboard().webApp(bt(lang, "btn.startTest"), env.WEB_APP_URL);
+      await ctx.reply(bt(lang, "start.greeting", { name: from.first_name }), { reply_markup: kb });
     } else if (eff === "blocked") {
-      await ctx.reply("⛔ Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.");
+      await ctx.reply(bt(lang, "start.blocked"));
     } else {
       // pending yoki expired
       const expired = eff === "expired";
-      let msg = expired
-        ? "⏰ Obunangiz tugadi.\n\nDavom etish uchun obunani yangilang — admin bilan bog'laning."
-        : "🔒 Xush kelibsiz!\n\n🎁 Bir marta testni BEPUL sinab ko'rishingiz mumkin. Keyin davom etish uchun admindan ruxsat oling (to'lov).";
+      let msg = expired ? bt(lang, "start.expired") : bt(lang, "start.pending");
       const kb = new InlineKeyboard();
       if (!expired && !user.trialUsed) {
-        kb.webApp("🎁 Bepul test ishlash", env.WEB_APP_URL).row();
+        kb.webApp(bt(lang, "btn.freeTest"), env.WEB_APP_URL).row();
       }
-      kb.text(expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash", `req:${user.id}`);
+      kb.text(bt(lang, expired ? "btn.reqRenew" : "btn.reqAccess"), `req:${user.id}`);
       if (env.PRICE_INFO) msg += `\n\n${env.PRICE_INFO}`;
       if (env.ADMIN_USERNAME) {
-        kb.row().url("💬 Admin bilan bog'lanish", `https://t.me/${env.ADMIN_USERNAME}`);
+        kb.row().url(bt(lang, "btn.contactAdmin"), `https://t.me/${env.ADMIN_USERNAME}`);
       }
       await ctx.reply(msg, { reply_markup: kb });
     }
   });
 
-  bot.command("help", (ctx) =>
-    ctx.reply(
-      "Rejimlar:\n" +
-        "• Random test — tasodifiy savollar\n" +
-        "• Imtihon — vaqt chegarasi bilan\n" +
-        "• O'rganish — darhol to'g'ri/noto'g'ri\n" +
-        "• Xatolar ustida — avval xato qilinganlar\n\n" +
-        "/start — boshlash · /myid — Telegram ID",
-    ),
-  );
+  bot.command("help", (ctx) => ctx.reply(bt(normalizeLang(ctx.from?.language_code), "help")));
 
   // Foydalanuvchi "Ruxsat so'rash" tugmasini bosdi
   bot.callbackQuery(/^req:(\d+)$/, async (ctx) => {
     const userId = Number(ctx.match[1]);
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return ctx.answerCallbackQuery("Foydalanuvchi topilmadi");
+    const lang = user.language;
     if (user.status === "approved" || isAdminTelegramId(user.telegramId)) {
-      return ctx.answerCallbackQuery("Sizda allaqachon ruxsat bor ✅");
+      return ctx.answerCallbackQuery(bt(lang, "cb.alreadyApproved"));
     }
-    if (user.status === "blocked") return ctx.answerCallbackQuery("Siz bloklangansiz");
+    if (user.status === "blocked") return ctx.answerCallbackQuery(bt(lang, "cb.blocked"));
     const uname = user.username ? `@${user.username}` : "(username yo'q)";
     await notifyAdmin(
       bot,
       `🔔 Yangi ruxsat so'rovi:\n👤 ${user.firstName} ${uname}\n🆔 ${user.telegramId}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
       approvalKeyboard(user.id),
     );
-    await ctx.answerCallbackQuery("So'rovingiz yuborildi ✅");
-    let msg = "📩 So'rovingiz adminга yuborildi. Tasdiqlashini kuting.";
+    await ctx.answerCallbackQuery(bt(lang, "cb.reqSent"));
+    let msg = bt(lang, "req.editWait");
     const editKb = new InlineKeyboard();
     if (env.PRICE_INFO) {
       msg += `\n\n${env.PRICE_INFO}`;
     }
     if (env.ADMIN_USERNAME) {
-      editKb.url("💬 Admin bilan bog'lanish", `https://t.me/${env.ADMIN_USERNAME}`);
+      editKb.url(bt(lang, "btn.contactAdmin"), `https://t.me/${env.ADMIN_USERNAME}`);
     }
     await ctx.editMessageText(msg, { reply_markup: editKb.inline_keyboard.length ? editKb : undefined });
   });
@@ -154,7 +142,7 @@ export function createBot() {
     );
     await ctx.forwardMessage(env.ADMIN_TELEGRAM_ID);
 
-    await ctx.reply("Chek qabul qilindi, admin tasdiqlashini kuting.");
+    await ctx.reply(bt(user.language, "receipt.accepted"));
   });
 
   // Chat-relay: admin so'rov/xabarga "reply" qilса -> foydalanuvchiga yetkaziladi;
@@ -180,7 +168,12 @@ export function createBot() {
         return;
       }
       try {
-        await bot.api.sendMessage(Number(m[1]), `💬 Admin:\n${text}`);
+        // Prefiksni foydalanuvchi tilida yuboramiz
+        const target = await prisma.user.findUnique({
+          where: { telegramId: BigInt(m[1]) },
+          select: { language: true },
+        });
+        await bot.api.sendMessage(Number(m[1]), bt(target?.language, "relay.adminPrefix") + text);
         await ctx.reply("✅ Foydalanuvchiga yuborildi.");
       } catch {
         await ctx.reply("❌ Yuborib bo'lmadi (foydalanuvchi botni bloklagan bo'lishi mumkin).");
@@ -189,12 +182,16 @@ export function createBot() {
     }
 
     // Oddiy foydalanuvchi -> adminга (admin reply qilib javob bera oladi)
+    const sender = await prisma.user.findUnique({
+      where: { telegramId: BigInt(from.id) },
+      select: { language: true },
+    });
     const uname = from.username ? `@${from.username}` : "(username yo'q)";
     await notifyAdmin(
       bot,
       `✉️ Xabar:\n👤 ${from.first_name} ${uname}\n🆔 ${from.id}\n\n${text}\n\n✍️ Javob berish uchun shu xabarga reply qiling.`,
     );
-    await ctx.reply("✅ Xabaringiz adminга yuborildi. Tez orada javob olasiz.");
+    await ctx.reply(bt(sender?.language ?? normalizeLang(from.language_code), "relay.userAck"));
   });
 
   bot.catch((err) => console.error("Bot xatosi:", err));

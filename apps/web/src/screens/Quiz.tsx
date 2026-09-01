@@ -3,6 +3,7 @@ import type { FinishResponse, StartQuizResponse } from "@aku/shared";
 import { api } from "../api.js";
 import { haptic, tap, useTelegramMainButton, useTelegramBackButton } from "../telegram.js";
 import { ConfirmModal } from "../components/ConfirmModal.js";
+import { useLang } from "../i18n.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
@@ -11,10 +12,11 @@ export function Quiz(props: {
   onFinish: (res: FinishResponse) => void;
   onExit: () => void;
 }) {
+  const { t } = useLang();
   const { attemptId, mode, questions, timeLimitSec } = props.data;
   const [index, setIndex] = useState(0);
   const [selections, setSelections] = useState<Record<number, number>>({});
-  const [revealed, setRevealed] = useState<Record<number, number>>({}); // qId -> correctIndex (study)
+  const [revealed, setRevealed] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmExit, setConfirmExit] = useState(false);
@@ -39,7 +41,7 @@ export function Quiz(props: {
       committed.current.add(qid);
       return res;
     } catch {
-      return null; // yozib bo'lmasa ham davom etamiz
+      return null;
     }
   }
 
@@ -48,42 +50,39 @@ export function Quiz(props: {
     finishing.current = true;
     setBusy(true);
     setError(null);
-    // Joriy savol javobini yozamiz (agar hali yozilmagan bo'lsa)
     if (selected !== null) await submitAnswer(q.id, selected);
     try {
       const res = await api.finish(attemptId);
       props.onFinish(res);
     } catch (e) {
-      setError((e as Error).message || "Yakunlashda xatolik");
+      setError((e as Error).message || t("quiz.finishError"));
       finishing.current = false;
       setBusy(false);
     }
   }
 
-  // Imtihon taymeri (stale closure'dan qochish uchun ref)
   const finishRef = useRef(doFinish);
   finishRef.current = doFinish;
+
   useEffect(() => {
-    // Taymer exam VA hard rejimlarida ishlaydi
     if ((mode !== "exam" && mode !== "hard") || !timeLimitSec) return;
-    const t = setInterval(() => {
+    const timer = setInterval(() => {
       setTimeLeft((s) => {
         if (s <= 1) {
-          clearInterval(t);
+          clearInterval(timer);
           finishRef.current();
           return 0;
         }
         return s - 1;
       });
     }, 1000);
-    return () => clearInterval(t);
+    return () => clearInterval(timer);
   }, [mode, timeLimitSec]);
 
   async function choose(i: number) {
     if (isRevealed || busy) return;
     tap();
     setSelections((s) => ({ ...s, [q.id]: i }));
-    // O'rganish rejimida: darhol yozib, to'g'ri javobni ochamiz
     if (isStudy) {
       setBusy(true);
       const res = await submitAnswer(q.id, i);
@@ -99,12 +98,12 @@ export function Quiz(props: {
   async function toggleBookmark() {
     tap();
     const cur = bookmarks[q.id] ?? false;
-    setBookmarks((b) => ({ ...b, [q.id]: !cur })); // optimistik
+    setBookmarks((b) => ({ ...b, [q.id]: !cur }));
     try {
       const r = await api.bookmarkToggle(q.id);
       setBookmarks((b) => ({ ...b, [q.id]: r.bookmarked }));
     } catch {
-      setBookmarks((b) => ({ ...b, [q.id]: cur })); // qaytaramiz
+      setBookmarks((b) => ({ ...b, [q.id]: cur }));
     }
   }
 
@@ -114,7 +113,6 @@ export function Quiz(props: {
       await doFinish();
       return;
     }
-    // Boshqa rejimlarда javobni shu yerда yozamiz (o'zgartirilgan bo'lsa oxirgisi)
     if (!isStudy) {
       setBusy(true);
       await submitAnswer(q.id, selected);
@@ -124,12 +122,11 @@ export function Quiz(props: {
   }
 
   useTelegramBackButton(() => setConfirmExit(true));
-
   useTelegramMainButton(
-    isLast ? "Yakunlash" : "Keyingi",
+    isLast ? t("quiz.finish") : t("quiz.next"),
     next,
-    selected !== null, // Faqat javob tanlanganda ko'rinadi
-    busy
+    selected !== null,
+    busy,
   );
 
   const mm = String(Math.floor(timeLeft / 60)).padStart(2, "0");
@@ -151,13 +148,10 @@ export function Quiz(props: {
           </span>
         )}
         <span className="qmeta-right">
-          <span className="bmark" onClick={toggleBookmark} title="Belgilash">
+          <span className="bmark" onClick={toggleBookmark} title={t("quiz.bookmark")}>
             {bookmarks[q.id] ? "🔖" : "🏷️"}
           </span>
-          <span
-            onClick={() => setConfirmExit(true)}
-            style={{ cursor: "pointer" }}
-          >
+          <span onClick={() => setConfirmExit(true)} style={{ cursor: "pointer" }}>
             ✕
           </span>
         </span>
@@ -184,7 +178,7 @@ export function Quiz(props: {
 
         {isRevealed && explanations[q.id] && (
           <div className="explain">
-            <span className="explain-t">💡 Izoh</span>
+            <span className="explain-t">{t("quiz.explain")}</span>
             {explanations[q.id]}
           </div>
         )}
@@ -192,18 +186,16 @@ export function Quiz(props: {
 
       {error && <p className="review-note" style={{ color: "var(--red)" }}>{error}</p>}
 
-      {/* MainButton borligi uchun veb-tugma kerak emas */}
-
       {!isStudy && (
         <p className="review-note" style={{ textAlign: "center", marginBottom: 20 }}>
-          Javobni tanlang — kerak bo'lsa o'zgartirishingiz mumkin. {answeredCount}/{questions.length} belgilandi.
+          {t("quiz.hint", { a: answeredCount, t: questions.length })}
         </p>
       )}
 
       {confirmExit && (
         <ConfirmModal
-          title="Testdan chiqasizmi?"
-          message="Joriy natija saqlanmaydi."
+          title={t("quiz.exitTitle")}
+          message={t("quiz.exitMsg")}
           onConfirm={() => {
             setConfirmExit(false);
             props.onExit();

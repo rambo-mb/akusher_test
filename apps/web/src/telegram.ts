@@ -3,6 +3,7 @@
 
 interface TgWebApp {
   initData: string;
+  initDataUnsafe?: { user?: { language_code?: string } };
   colorScheme: "light" | "dark";
   themeParams: Record<string, string>;
   ready: () => void;
@@ -102,6 +103,11 @@ import { useEffect } from "react";
 export function getInitData(): string {
   if (tg?.initData) return tg.initData;
   return import.meta.env.VITE_DEV_INIT_DATA ?? "";
+}
+
+// Telegram interfeys tili kodi (masalan "ru", "uz", "en-US")
+export function getTgLangCode(): string | undefined {
+  return tg?.initDataUnsafe?.user?.language_code;
 }
 
 export function useTelegramBackButton(onClick: () => void) {

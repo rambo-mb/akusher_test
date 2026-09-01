@@ -1,43 +1,21 @@
 import { useState } from "react";
 import { useTelegramMainButton, useTelegramBackButton, tap } from "../telegram.js";
+import { useLang } from "../i18n.js";
 
-const SLIDES = [
-  {
-    emoji: "🩺",
-    title: "Xush kelibsiz!",
-    desc: "Akusherlik va ginekologiya imtihoniga tayyorgarlik uchun 600+ test savoli. Har kuni mashq qilib bilimingizni oshiring.",
-  },
-  {
-    emoji: "🎯",
-    title: "Test rejimlari",
-    desc: "• Random — tasodifiy savollar\n• Imtihon — vaqt chegarasi bilan\n• O'rganish — darhol to'g'ri/noto'g'ri\n• Qiyin rejim — tez (15s), izohsiz",
-  },
-  {
-    emoji: "🔁",
-    title: "Belgilash va takrorlash",
-    desc: "Yoqqan savolni 🔖 belgilang — «Belgilangan» rejimida qayta ishlang. Xato savollaringiz «Takrorlash» rejimida interval bilan qaytadi (yaxshi esda qolishi uchun).",
-  },
-  {
-    emoji: "🔥",
-    title: "Streak va maqsad",
-    desc: "Har kuni mashq qilib davomiylik (streak) yig'ing, kunlik maqsadingizni bajaring, yutuqlar (🏅) oching va reytingda yuqoriga ko'tariling.",
-  },
-  {
-    emoji: "💳",
-    title: "Obuna va bonus",
-    desc: "Bir marta BEPUL sinab ko'rasiz. Davom etish uchun admin bilan bog'lanib obuna oling. Do'st taklif qilsangiz — har bir obuna uchun sizga +7 kun bonus!",
-  },
-  {
-    emoji: "🎓",
-    title: "Tayyor!",
-    desc: "Omad tilaymiz. Savol yoki muammo bo'lsa — botga yozing, admin javob beradi.",
-  },
+const SLIDE_KEYS = [
+  { emoji: "🩺", ti: "onb.0.title", di: "onb.0.desc" },
+  { emoji: "🎯", ti: "onb.1.title", di: "onb.1.desc" },
+  { emoji: "🔁", ti: "onb.2.title", di: "onb.2.desc" },
+  { emoji: "🔥", ti: "onb.3.title", di: "onb.3.desc" },
+  { emoji: "💳", ti: "onb.4.title", di: "onb.4.desc" },
+  { emoji: "🎓", ti: "onb.5.title", di: "onb.5.desc" },
 ];
 
 export function Onboarding(props: { onComplete: () => void; guide?: boolean }) {
+  const { t } = useLang();
   const [index, setIndex] = useState(0);
-  const slide = SLIDES[index];
-  const isLast = index === SLIDES.length - 1;
+  const slideKey = SLIDE_KEYS[index];
+  const isLast = index === SLIDE_KEYS.length - 1;
 
   function next() {
     tap();
@@ -49,24 +27,42 @@ export function Onboarding(props: { onComplete: () => void; guide?: boolean }) {
     }
   }
 
-  // Qo'llanma rejimida istalgan vaqtda chiqib ketish mumkin
   useTelegramBackButton(props.guide ? props.onComplete : () => {});
-  useTelegramMainButton(isLast ? (props.guide ? "Yopish" : "Boshlash") : "Keyingi", next);
+  useTelegramMainButton(
+    isLast ? (props.guide ? t("onb.close") : t("onb.start")) : t("onb.next"),
+    next,
+  );
 
   return (
     <div
       className="center qbody"
       key={index}
-      style={{ display: "flex", flexDirection: "column", justifyContent: "center", minHeight: "72vh", padding: 20 }}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        minHeight: "72vh",
+        padding: 20,
+      }}
     >
-      <div style={{ fontSize: 80, marginBottom: 20 }}>{slide.emoji}</div>
-      <h2 style={{ fontSize: 24, marginBottom: 12 }}>{slide.title}</h2>
-      <p style={{ color: "var(--tg-hint)", fontSize: 16, lineHeight: 1.6, whiteSpace: "pre-line", textAlign: "left", maxWidth: 340, margin: "0 auto" }}>
-        {slide.desc}
+      <div style={{ fontSize: 80, marginBottom: 20 }}>{slideKey.emoji}</div>
+      <h2 style={{ fontSize: 24, marginBottom: 12 }}>{t(slideKey.ti)}</h2>
+      <p
+        style={{
+          color: "var(--tg-hint)",
+          fontSize: 16,
+          lineHeight: 1.6,
+          whiteSpace: "pre-line",
+          textAlign: "left",
+          maxWidth: 340,
+          margin: "0 auto",
+        }}
+      >
+        {t(slideKey.di)}
       </p>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 36 }}>
-        {SLIDES.map((_, i) => (
+        {SLIDE_KEYS.map((_, i) => (
           <div
             key={i}
             onClick={() => { tap(); setIndex(i); }}
@@ -83,8 +79,12 @@ export function Onboarding(props: { onComplete: () => void; guide?: boolean }) {
       </div>
 
       {props.guide && (
-        <button className="ghost" style={{ marginTop: 28, maxWidth: 200, marginLeft: "auto", marginRight: "auto" }} onClick={props.onComplete}>
-          Yopish
+        <button
+          className="ghost"
+          style={{ marginTop: 28, maxWidth: 200, marginLeft: "auto", marginRight: "auto" }}
+          onClick={props.onComplete}
+        >
+          {t("onb.close")}
         </button>
       )}
     </div>

@@ -3,6 +3,7 @@ import { prisma } from "./db.js";
 import { notifyUser } from "./access.js";
 import { Bot, InlineKeyboard } from "grammy";
 import { env } from "./env.js";
+import { bt } from "./i18n.js";
 
 // Run every day at 19:00 (7 PM)
 export function startScheduler(bot: Bot) {
@@ -41,7 +42,7 @@ export function startScheduler(bot: Bot) {
       });
 
       if (!answerToday) {
-        const msg = `Bugungi mashqni bajaring 🔥 (streak: ${user.streak})\n\nHar kuni mashq qilish orqali natijalaringizni yaxshilang!`;
+        const msg = bt(user.language, "reminder", { streak: user.streak });
         await notifyUser(bot, user.telegramId, msg);
         // Basic rate limit (Telegram limit is 30 msgs / second approx)
         await new Promise(r => setTimeout(r, 50));

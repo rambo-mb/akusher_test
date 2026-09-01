@@ -56,8 +56,11 @@ export const api = {
   start(body: StartQuizRequest) {
     return req<StartQuizResponse>("/api/quiz/start", "POST", body);
   },
-  startQuiz(mode: StartQuizRequest["mode"], count: number, category?: string) {
-    return req<StartQuizResponse>("/api/quiz/start", "POST", { mode, count, category });
+  startQuiz(mode: StartQuizRequest["mode"], count: number, category?: string, lang?: StartQuizRequest["lang"]) {
+    return req<StartQuizResponse>("/api/quiz/start", "POST", { mode, count, category, lang });
+  },
+  updateLanguage(lang: "uz" | "ru") {
+    return req<{ ok: boolean; language: string }>("/api/me/language", "PUT", { lang });
   },
   categories() {
     return req<{ name: string; count: number }[]>("/api/categories");

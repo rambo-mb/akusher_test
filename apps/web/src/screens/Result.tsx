@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { useTelegramMainButton, openTelegramLink } from "../telegram.js";
 import type { FinishResponse } from "@aku/shared";
+import { useLang } from "../i18n.js";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 
 export function Result(props: { data: FinishResponse; botUsername?: string; onHome: () => void }) {
+  const { t } = useLang();
   const { total, correctCount, score, items } = props.data;
   const wrongCount = items.filter((i) => !i.isCorrect).length;
   const emoji = score >= 80 ? "🎉" : score >= 60 ? "👍" : "📚";
@@ -27,12 +29,12 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
 
   const shown = filter === "wrong" ? items.filter((i) => !i.isCorrect) : items;
 
-  useTelegramMainButton("Bosh sahifa", props.onHome);
+  useTelegramMainButton(t("result.home"), props.onHome);
 
   return (
     <>
-      <h1 style={{ textAlign: "center" }}>Natija {emoji}</h1>
-      
+      <h1 style={{ textAlign: "center" }}>{t("result.title")} {emoji}</h1>
+
       <div style={{ display: "flex", justifyContent: "center", margin: "20px 0" }}>
         <svg width="120" height="120" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="50" fill="none" stroke="var(--tg-secondary-bg)" strokeWidth="12" />
@@ -49,26 +51,27 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
         </svg>
       </div>
       <div className="result-sub">
-        {total} tadan <b style={{ color: "var(--green)" }}>{correctCount} to'g'ri</b>
+        {t("result.of", { total })}{" "}
+        <b style={{ color: "var(--green)" }}>{t("result.correct", { n: correctCount })}</b>
         {wrongCount > 0 && (
           <>
             {" · "}
-            <b style={{ color: "var(--red)" }}>{wrongCount} xato</b>
+            <b style={{ color: "var(--red)" }}>{t("result.wrong", { n: wrongCount })}</b>
           </>
         )}
       </div>
-      
+
       {props.botUsername && (
         <button
           className="share-btn"
           onClick={() => {
-            const text = `Men akusherlik testida ${Math.round(score)}% oldim! Sen ham sinab ko'r 👉`;
+            const text = t("result.shareText", { score: Math.round(score) });
             openTelegramLink(
               `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${props.botUsername}`)}&text=${encodeURIComponent(text)}`,
             );
           }}
         >
-          📤 Natijani do'stlar bilan ulashish
+          {t("result.share")}
         </button>
       )}
 
@@ -76,10 +79,10 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
         <>
           <div className="tabs">
             <div className={`tab ${filter === "all" ? "active" : ""}`} onClick={() => setFilter("all")}>
-              Hammasi ({items.length})
+              {t("result.allTab", { n: items.length })}
             </div>
             <div className={`tab ${filter === "wrong" ? "active" : ""}`} onClick={() => setFilter("wrong")}>
-              Xatolar ({wrongCount})
+              {t("result.wrongTab", { n: wrongCount })}
             </div>
           </div>
 
@@ -99,14 +102,14 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
                   <div key={i} className={cls}>
                     <span className="letter">{LETTERS[i]}</span>
                     <span>{opt}</span>
-                    {isCorrect && <span className="tagr ok"> to'g'ri</span>}
-                    {isPicked && !isCorrect && <span className="tagr no"> siz</span>}
+                    {isCorrect && <span className="tagr ok">{t("result.correctTag")}</span>}
+                    {isPicked && !isCorrect && <span className="tagr no">{t("result.youTag")}</span>}
                   </div>
                 );
               })}
               {it.explanation && props.data.mode !== "hard" && (
                 <div className="explain">
-                  <span className="explain-t">💡 Izoh</span>
+                  <span className="explain-t">{t("quiz.explain")}</span>
                   {it.explanation}
                 </div>
               )}
@@ -114,8 +117,6 @@ export function Result(props: { data: FinishResponse; botUsername?: string; onHo
           ))}
         </>
       )}
-
-      {/* MainButton replaces the button below */}
     </>
   );
 }

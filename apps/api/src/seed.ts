@@ -13,6 +13,9 @@ interface RawQuestion {
   options: string[];
   correctIndex: number;
   needsReview: boolean;
+  stem_ru?: string;
+  options_ru?: string[];
+  explanation_ru?: string;
 }
 
 /**
@@ -42,6 +45,9 @@ export async function seedQuestions(prisma: PrismaClient): Promise<number> {
         options: q.options,
         correctIndex: q.correctIndex,
         needsReview: q.needsReview,
+        stemRu: q.stem_ru ?? null,
+        optionsRu: q.options_ru ?? [],
+        explanationRu: q.explanation_ru ?? null,
       })),
       skipDuplicates: true,
     });
@@ -74,11 +80,14 @@ export async function reimportQuestions(
       options: q.options,
       correctIndex: q.correctIndex,
       needsReview: q.needsReview,
+      // ruscha tarjima yangilanadi (admin izohlari — explanation/explanationRu/category — tegilmaydi)
+      stemRu: q.stem_ru ?? null,
+      optionsRu: q.options_ru ?? [],
     };
     await prisma.question.upsert({
       where: { id: q.id },
-      update: content, // explanation/category tegilmaydi -> admin izohlari saqlanadi
-      create: { id: q.id, ...content },
+      update: content, // explanation/explanationRu/category tegilmaydi -> admin izohlari saqlanadi
+      create: { id: q.id, ...content, explanationRu: q.explanation_ru ?? null },
     });
     if (have.has(q.id)) updated++;
     else created++;

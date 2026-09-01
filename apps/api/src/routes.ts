@@ -17,12 +17,14 @@ import type {
   UserStatus,
 } from "@aku/shared";
 import { EXAM_SECONDS_PER_QUESTION } from "@aku/shared";
+import type { Lang } from "@aku/shared";
 import { prisma } from "./db.js";
 import { env } from "./env.js";
 import {
   effectiveStatus,
   isAdminTelegramId,
   isExpired,
+  normalizeLang,
   requireAdmin,
   requireAuth,
   requireQuizAccess,
@@ -34,6 +36,24 @@ import { getDueReviewCount, getDueReviewIds, recordAnswer } from "./srs.js";
 import { reimportQuestions } from "./seed.js";
 
 const MAX_COUNT = 100;
+
+/** Savol matnini tanlangan tilга moslaydi. RU bo'sh bo'lsa — o'zbekchaga qaytadi. */
+function localize<
+  T extends {
+    stem: string;
+    options: string[];
+    explanation?: string | null;
+    stemRu?: string | null;
+    optionsRu?: string[];
+    explanationRu?: string | null;
+  },
+>(q: T, lang: Lang): { stem: string; options: string[]; explanation: string | null } {
+  const ru = lang === "ru";
+  const stem = ru && q.stemRu ? q.stemRu : q.stem;
+  const options = ru && q.optionsRu && q.optionsRu.length === q.options.length ? q.optionsRu : q.options;
+  const explanation = ru && q.explanationRu ? q.explanationRu : q.explanation ?? null;
+  return { stem, options, explanation };
+}
 
 export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   // --- Auth: Telegram initData -> JWT ---
@@ -57,6 +77,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         firstName: tgUser.first_name,
         username: tgUser.username ?? null,
         status: admin ? "approved" : "pending",
+        language: normalizeLang(tgUser.language_code),
       },
     });
 
@@ -71,6 +92,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         telegramId: String(user.telegramId),
         accessUntil: user.accessUntil ? user.accessUntil.toISOString() : null,
         trialUsed: user.trialUsed,
+        language: (user.language === "ru" ? "ru" : "uz") as Lang,
       },
       config: {
         adminUsername: env.ADMIN_USERNAME,
@@ -319,6 +341,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
 
       // Bepul sinov: tasdiqlanmagan foydalanuvchi faqat 1 marta test ishlay oladi
       const me = await prisma.user.findUnique({ where: { id: userId } });
+      const lang: Lang = (req.body?.lang ?? (me?.language === "ru" ? "ru" : "uz")) as Lang;
       const isApproved =
         req.isAdmin || (me != null && me.status === "approved" && !isExpired(me));
       if (!isApproved) {
@@ -378,7 +401,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       const [rows, marks] = await Promise.all([
         prisma.question.findMany({
           where: { id: { in: questionIds } },
-          select: { id: true, number: true, topic: true, stem: true, options: true },
+          select: { id: true, number: true, topic: true, stem: true, options: true, stemRu: true, optionsRu: true },
         }),
         prisma.bookmark.findMany({
           where: { userId, questionId: { in: questionIds } },
@@ -388,7 +411,10 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       const marked = new Set(marks.map((m) => m.questionId));
       const order = new Map(questionIds.map((id, i) => [id, i]));
       const questions = rows
-        .map((q) => ({ ...q, bookmarked: marked.has(q.id) }))
+        .map((q) => {
+          const loc = localize(q, lang);
+          return { id: q.id, number: q.number, topic: q.topic, stem: loc.stem, options: loc.options, bookmarked: marked.has(q.id) };
+        })
         .sort((a, b) => order.get(a.id)! - order.get(b.id)!);
 
       const attempt = await prisma.attempt.create({
@@ -412,7 +438,7 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     async (req, reply) => {
       const userId = req.userId!;
       const attemptId = Number(req.params.attemptId);
-      const { questionId, selectedIndex } = req.body ?? {};
+      const { questionId, selectedIndex, lang: bodyLang } = req.body ?? {};
 
       const attempt = await prisma.attempt.findFirst({ where: { id: attemptId, userId } });
       if (!attempt) return reply.code(404).send({ error: "Seans topilmadi" });
@@ -434,10 +460,11 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
       // SRS holatini yangilaymiz (faqat birinchi javobda, qayta yozishda emas)
       if (!existing) await recordAnswer(userId, questionId, isCorrect);
 
+      const ansLang: Lang = (bodyLang ?? "uz") as Lang;
       const res: AnswerResponse = {
         isCorrect,
         correctIndex: question.correctIndex,
-        explanation: question.explanation,
+        explanation: localize(question, ansLang).explanation,
       };
       return res;
     },
@@ -486,17 +513,21 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
         });
       }
 
+      const finishLang: Lang = (u?.language === "ru" ? "ru" : "uz") as Lang;
       const items = attempt.answers
-        .map((a) => ({
-          questionId: a.questionId,
-          number: a.question.number,
-          stem: a.question.stem,
-          options: a.question.options,
-          correctIndex: a.question.correctIndex,
-          selectedIndex: a.selectedIndex,
-          isCorrect: a.isCorrect,
-          explanation: a.question.explanation,
-        }))
+        .map((a) => {
+          const loc = localize(a.question, finishLang);
+          return {
+            questionId: a.questionId,
+            number: a.question.number,
+            stem: loc.stem,
+            options: loc.options,
+            correctIndex: a.question.correctIndex,
+            selectedIndex: a.selectedIndex,
+            isCorrect: a.isCorrect,
+            explanation: loc.explanation,
+          };
+        })
         .sort((x, y) => x.number - y.number);
 
       const res: FinishResponse = { attemptId, mode: attempt.mode as QuizMode, total, correctCount, score, items };
@@ -566,6 +597,17 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     },
   );
 
+  // --- Interfeys tili (uz | ru) ---
+  app.put<{ Body: { lang: Lang } }>(
+    "/api/me/language",
+    { preHandler: [requireAuth] },
+    async (req, reply) => {
+      const lang = req.body?.lang === "ru" ? "ru" : "uz";
+      await prisma.user.update({ where: { id: req.userId! }, data: { language: lang } });
+      return { ok: true, language: lang };
+    },
+  );
+
   // --- Gamification: History & Stats ---
   app.get("/api/attempts", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
     const attempts = await prisma.attempt.findMany({
@@ -587,17 +629,22 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
     });
     if (!attempt) return reply.code(404).send({ error: "Seans topilmadi" });
 
+    const hu = await prisma.user.findUnique({ where: { id: req.userId! }, select: { language: true } });
+    const histLang: Lang = (hu?.language === "ru" ? "ru" : "uz") as Lang;
     const items = attempt.answers
-      .map((a) => ({
-        questionId: a.questionId,
-        number: a.question.number,
-        stem: a.question.stem,
-        options: a.question.options,
-        correctIndex: a.question.correctIndex,
-        selectedIndex: a.selectedIndex,
-        isCorrect: a.isCorrect,
-        explanation: a.question.explanation,
-      }))
+      .map((a) => {
+        const loc = localize(a.question, histLang);
+        return {
+          questionId: a.questionId,
+          number: a.question.number,
+          stem: loc.stem,
+          options: loc.options,
+          correctIndex: a.question.correctIndex,
+          selectedIndex: a.selectedIndex,
+          isCorrect: a.isCorrect,
+          explanation: loc.explanation,
+        };
+      })
       .sort((x, y) => x.number - y.number);
 
     const res: FinishResponse = {
@@ -612,15 +659,17 @@ export async function registerRoutes(app: FastifyInstance, bot: Bot) {
   });
 
   app.get("/api/stats/weak", { preHandler: [requireAuth, requireQuizAccess] }, async (req) => {
+    const wu = await prisma.user.findUnique({ where: { id: req.userId! }, select: { language: true } });
+    const weakRu = wu?.language === "ru";
     const weak = await prisma.userQuestion.findMany({
       where: { userId: req.userId!, wrongCount: { gt: 0 } },
       orderBy: { wrongCount: "desc" },
       take: 20,
-      include: { question: { select: { stem: true } } },
+      include: { question: { select: { stem: true, stemRu: true } } },
     });
     return weak.map(w => ({
       questionId: w.questionId,
-      stem: w.question.stem,
+      stem: weakRu && w.question.stemRu ? w.question.stemRu : w.question.stem,
       wrongCount: w.wrongCount,
       box: w.box,
     }));

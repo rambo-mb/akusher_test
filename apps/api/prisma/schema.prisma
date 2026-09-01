@@ -21,6 +21,10 @@ model Question {
   needsReview  Boolean  @default(false)
   explanation  String? // izoh (nega to'g'ri)
   category     String? // mavzu/bo'lim (ixtiyoriy)
+  // Ruscha tarjima (ixtiyoriy — bo'sh bo'lsa o'zbekchaga qaytadi)
+  stemRu        String?
+  optionsRu     String[] @default([])
+  explanationRu String?
 
   answers       AttemptAnswer[]
   bookmarks     Bookmark[]
@@ -74,6 +78,7 @@ model User {
   referralBonusDays Int @default(0)
   remindersOn  Boolean   @default(true)
   displayName  String?
+  language     String    @default("uz") // interfeys/bot tili: uz | ru
   attempts      Attempt[]
   bookmarks     Bookmark[]
   userQuestions UserQuestion[]

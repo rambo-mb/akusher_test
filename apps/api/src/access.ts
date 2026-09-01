@@ -2,6 +2,7 @@ import type { Bot } from "grammy";
 import { InlineKeyboard } from "grammy";
 import { env } from "./env.js";
 import { prisma } from "./db.js";
+import { bt } from "./i18n.js";
 
 /** Admin bildirishnomasi uchun tasdiqlash klaviaturasi (muddat tanlash) */
 export function approvalKeyboard(userId: number) {
@@ -87,19 +88,15 @@ export async function approveUser(bot: Bot, userId: number, days?: number) {
       await notifyUser(
         bot,
         referrer.telegramId,
-        `🎁 Tabriklaymiz! Siz taklif qilgan do'stingiz obuna xarid qildi.\n\nSizga +7 kun bonus taqdim etildi. (Gacha: ${rAccessUntil.toISOString().slice(0, 10)})`
+        bt(referrer.language, "referral.bonus", { date: rAccessUntil.toISOString().slice(0, 10) }),
       );
     }
   }
 
   const until = accessUntil
-    ? `📅 Amal qiladi: ${accessUntil.toISOString().slice(0, 10)} gacha`
-    : "♾ Muddatsiz";
-  await notifyUser(
-    bot,
-    user.telegramId,
-    `✅ Sizga ruxsat berildi!\n${until}\n\nTestlarni boshlash uchun /start bosing.`,
-  );
+    ? bt(user.language, "until.date", { date: accessUntil.toISOString().slice(0, 10) })
+    : bt(user.language, "until.forever");
+  await notifyUser(bot, user.telegramId, bt(user.language, "approve.granted", { until }));
   return user;
 }
 
@@ -110,9 +107,7 @@ export async function approveUser(bot: Bot, userId: number, days?: number) {
 export async function declineUser(bot: Bot, userId: number) {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return null;
-  let msg =
-    "❌ So'rovingiz hozircha tasdiqlanmadi.\n\n" +
-    "To'lovni amalga oshirib, admin bilan bog'laning va qayta urinib ko'ring.";
+  let msg = bt(user.language, "decline");
   if (env.ADMIN_USERNAME) msg += `\n👉 https://t.me/${env.ADMIN_USERNAME}`;
   await notifyUser(bot, user.telegramId, msg);
   return user;
@@ -123,6 +118,6 @@ export async function blockUser(bot: Bot, userId: number) {
     where: { id: userId },
     data: { status: "blocked" },
   });
-  await notifyUser(bot, user.telegramId, "⛔ Sizning ruxsatingiz bekor qilindi.");
+  await notifyUser(bot, user.telegramId, bt(user.language, "block"));
   return user;
 }

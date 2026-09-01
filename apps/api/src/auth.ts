@@ -26,6 +26,12 @@ export interface TelegramUser {
   first_name: string;
   last_name?: string;
   username?: string;
+  language_code?: string;
+}
+
+/** Telegram language_code -> interfeys tili (ru* -> ru, aks holda uz) */
+export function normalizeLang(code?: string | null): "uz" | "ru" {
+  return code && code.toLowerCase().startsWith("ru") ? "ru" : "uz";
 }
 
 /**

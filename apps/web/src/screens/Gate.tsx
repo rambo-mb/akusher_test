@@ -2,8 +2,14 @@ import { useState } from "react";
 import type { AuthResponse, UserStatus } from "@aku/shared";
 import { api } from "../api.js";
 import { getInitData, openTelegramLink } from "../telegram.js";
+import { useLang } from "../i18n.js";
 
-export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse["config"]; onApproved: () => void }) {
+export function Gate(props: {
+  user: AuthResponse["user"];
+  config?: AuthResponse["config"];
+  onApproved: () => void;
+}) {
+  const { t, lang, setLang } = useLang();
   const [status, setStatus] = useState<UserStatus>(props.user.status);
   const [requested, setRequested] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,13 +44,37 @@ export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse[
     }
   }
 
+  const LangToggle = () => (
+    <div style={{ display: "flex", justifyContent: "flex-end", gap: 4, marginBottom: 8 }}>
+      {(["uz", "ru"] as const).map((l) => (
+        <button
+          key={l}
+          onClick={() => setLang(l)}
+          style={{
+            padding: "3px 8px",
+            border: "none",
+            borderRadius: 6,
+            background: lang === l ? "var(--tg-button)" : "var(--tg-secondary-bg)",
+            color: lang === l ? "var(--tg-button-text)" : "var(--tg-hint)",
+            cursor: "pointer",
+            fontSize: 11,
+            fontWeight: lang === l ? "bold" : "normal",
+          }}
+        >
+          {l.toUpperCase()}
+        </button>
+      ))}
+    </div>
+  );
+
   if (status === "blocked") {
     return (
       <div className="gate">
+        <LangToggle />
         <div className="gate-emoji">⛔</div>
-        <h1>Ruxsat yo'q</h1>
-        <p className="subtitle">Kechirasiz, sizga ushbu botdan foydalanish ruxsati berilmagan.</p>
-        <p className="gate-id">ID: {props.user.telegramId}</p>
+        <h1>{t("gate.blockedTitle")}</h1>
+        <p className="subtitle">{t("gate.blockedSub")}</p>
+        <p className="gate-id">{t("gate.idLabel")}: {props.user.telegramId}</p>
       </div>
     );
   }
@@ -53,42 +83,53 @@ export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse[
   const trialEnded = status === "pending" && props.user.trialUsed;
 
   const emoji = expired ? "⏰" : trialEnded ? "🎁" : "🔒";
-  const title = expired ? "Obunangiz tugadi" : trialEnded ? "Bepul sinov tugadi" : "Ruxsat kerak";
-  const sub = expired
-    ? "Davom etish uchun obunani yangilang — admin tasdiqlaydi."
+  const title = expired
+    ? t("gate.expiredTitle")
     : trialEnded
-      ? "Bepul testдан foydalandingiz. Davom etish uchun to'lov qiling — admin bilan bog'laning."
-      : "Bu bot yopiq. Foydalanish uchun admindan ruxsat oling.";
+      ? t("gate.trialTitle")
+      : t("gate.needTitle");
+  const sub = expired
+    ? t("gate.expiredSub")
+    : trialEnded
+      ? t("gate.trialSub")
+      : t("gate.needSub");
 
   return (
     <div className="gate">
+      <LangToggle />
       <div className="gate-emoji">{emoji}</div>
       <h1>{title}</h1>
       <p className="subtitle">{sub}</p>
 
       {props.config?.cardNumber && (
         <div className="card" style={{ marginBottom: 16, textAlign: "left" }}>
-          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 16 }}>Cheksiz kirish uchun to'lov qiling</div>
-          <div style={{ marginBottom: 4 }}>💳 <b>Karta:</b> <code style={{ userSelect: "all", background: "var(--tg-secondary-bg)", padding: "2px 6px", borderRadius: 4 }}>{props.config.cardNumber}</code></div>
+          <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 16 }}>{t("gate.payTitle")}</div>
+          <div style={{ marginBottom: 4 }}>
+            💳 <b>{t("gate.card")}:</b>{" "}
+            <code style={{ userSelect: "all", background: "var(--tg-secondary-bg)", padding: "2px 6px", borderRadius: 4 }}>
+              {props.config.cardNumber}
+            </code>
+          </div>
           {props.config.priceInfo && (
-            <div style={{ marginBottom: 8 }}>💰 <b>Summa:</b> {props.config.priceInfo}</div>
+            <div style={{ marginBottom: 8 }}>💰 <b>{t("gate.amount")}:</b> {props.config.priceInfo}</div>
           )}
           <div className="review-note" style={{ marginTop: 8, color: "var(--tg-hint)" }}>
-            To'lov qilib, chekni rasmga tushirib shu botga yuboring.
+            {t("gate.payNote")}
           </div>
         </div>
       )}
+
       {!requested ? (
         <button className="primary" onClick={request} disabled={busy}>
-          {busy ? "Yuborilmoqda…" : expired ? "♻️ Yangilash so'rash" : "📩 Ruxsat so'rash"}
+          {busy ? t("gate.sending") : expired ? t("gate.reqRenew") : t("gate.reqAccess")}
         </button>
       ) : (
         <div className="card" style={{ textAlign: "center" }}>
           <div style={{ fontSize: 28, marginBottom: 6 }}>⏳</div>
-          <div style={{ fontWeight: 600 }}>So'rovingiz yuborildi</div>
-          <div className="review-note">Admin tasdiqlagach davom etasiz.</div>
+          <div style={{ fontWeight: 600 }}>{t("gate.sentTitle")}</div>
+          <div className="review-note">{t("gate.sentSub")}</div>
           <button className="ghost" onClick={recheck} disabled={busy} style={{ marginTop: 10 }}>
-            {busy ? "Tekshirilmoqda…" : "🔄 Holatni tekshirish"}
+            {busy ? t("gate.checking") : t("gate.checkStatus")}
           </button>
         </div>
       )}
@@ -99,11 +140,11 @@ export function Gate(props: { user: AuthResponse["user"]; config?: AuthResponse[
           onClick={() => openTelegramLink(`https://t.me/${props.config!.adminUsername}`)}
           style={{ marginTop: 8, background: "var(--green)" }}
         >
-          💬 Admin bilan bog'lanish (to'lov)
+          {t("gate.contactAdmin")}
         </button>
       )}
 
-      <p className="gate-id">Sizning ID: {props.user.telegramId}</p>
+      <p className="gate-id">{t("gate.yourId")}: {props.user.telegramId}</p>
       {err && <p className="review-note" style={{ color: "var(--red)" }}>{err}</p>}
     </div>
   );
